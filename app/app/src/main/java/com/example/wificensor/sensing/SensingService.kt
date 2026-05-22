@@ -58,6 +58,14 @@ class SensingService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_STOP -> { stopSelf(); return START_NOT_STICKY }
+            "RECALIBRATE" -> {
+                presenceEngine.recalibrate()
+                liveResult.value = PresenceEngine.PresenceResult(
+                    PresenceEngine.PresenceState.UNKNOWN,
+                    PresenceEngine.ActivityState.UNKNOWN,
+                    0f, 0f, 0f, ""
+                )
+            }
             else        -> startForeground()
         }
         return START_STICKY
