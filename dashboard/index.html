@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Wifi-Censor · Invisible Spatial Sensing</title>
+  <meta name="description" content="Hệ thống cảm biến không gian thông minh sử dụng tín hiệu Wi-Fi. Theo dõi sự hiện diện, hoạt động và sức khỏe hoàn toàn cục bộ, không gửi dữ liệu cloud." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <!-- Background orbs -->
+  <div class="bg-orb bg-orb-1"></div>
+  <div class="bg-orb bg-orb-2"></div>
+  <div class="bg-orb bg-orb-3"></div>
+
+  <!-- Header -->
+  <header class="header">
+    <div class="header-inner">
+      <div class="logo">
+        <div class="logo-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z" fill="url(#logoGrad)"/>
+            <path d="M8 12c0-2.21 1.79-4 4-4s4 1.79 4 4-1.79 4-4 4-4-1.79-4-4z" fill="white" fill-opacity="0.9"/>
+            <defs>
+              <linearGradient id="logoGrad" x1="2" y1="2" x2="22" y2="22">
+                <stop offset="0%" stop-color="#6366f1"/>
+                <stop offset="100%" stop-color="#06b6d4"/>
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+        <span class="logo-text">Wifi<span class="logo-accent">Censor</span></span>
+      </div>
+      <nav class="nav-tabs">
+        <button class="nav-tab active" id="tab-dashboard" onclick="switchTab('dashboard')">Dashboard</button>
+        <button class="nav-tab" id="tab-history" onclick="switchTab('history')">Lịch sử</button>
+        <button class="nav-tab" id="tab-settings" onclick="switchTab('settings')">Cài đặt</button>
+      </nav>
+      <div class="header-right">
+        <div class="connection-badge" id="connectionBadge">
+          <span class="connection-dot"></span>
+          <span id="connectionText">Đang kết nối...</span>
+        </div>
+        <div class="last-update" id="lastUpdate">--</div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="main-content">
+
+    <!-- DASHBOARD TAB -->
+    <section class="tab-panel active" id="panel-dashboard">
+
+      <!-- Status Hero -->
+      <div class="status-hero" id="statusHero">
+        <div class="status-beacon" id="statusBeacon">
+          <div class="beacon-pulse" id="beaconPulse"></div>
+          <div class="beacon-pulse beacon-pulse-2" id="beaconPulse2"></div>
+          <div class="beacon-core" id="beaconCore">
+            <span class="beacon-icon" id="beaconIcon">👤</span>
+          </div>
+        </div>
+        <div class="status-info">
+          <div class="status-label" id="statusLabel">Đang phân tích...</div>
+          <div class="status-sublabel" id="statusSublabel">Đang kết nối với thiết bị</div>
+          <div class="confidence-bar-wrap">
+            <div class="confidence-label">Độ tin cậy</div>
+            <div class="confidence-bar">
+              <div class="confidence-fill" id="confidenceFill" style="width: 0%"></div>
+            </div>
+            <div class="confidence-value" id="confidenceValue">--%</div>
+          </div>
+        </div>
+        <div class="status-stats">
+          <div class="stat-card" id="statPresent">
+            <div class="stat-value" id="presentMinutes">--</div>
+            <div class="stat-unit">phút</div>
+            <div class="stat-label">Có mặt hôm nay</div>
+          </div>
+          <div class="stat-card" id="statAbsent">
+            <div class="stat-value" id="absentMinutes">--</div>
+            <div class="stat-unit">phút</div>
+            <div class="stat-label">Vắng phòng</div>
+          </div>
+          <div class="stat-card" id="statRssi">
+            <div class="stat-value" id="rssiValue">--</div>
+            <div class="stat-unit">dBm</div>
+            <div class="stat-label">RSSI hiện tại</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Metrics Grid -->
+      <div class="metrics-grid">
+
+        <!-- RSSI Signal Chart -->
+        <div class="metric-card card-wide">
+          <div class="card-header">
+            <h2 class="card-title">📡 Tín hiệu RSSI (24 giờ)</h2>
+            <div class="card-badge" id="rssiVarianceBadge">Variance: --</div>
+          </div>
+          <div class="chart-container">
+            <canvas id="rssiChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Activity Timeline -->
+        <div class="metric-card card-wide">
+          <div class="card-header">
+            <h2 class="card-title">🕐 Hoạt động hôm nay</h2>
+            <button class="card-action" onclick="refreshData()">🔄 Làm mới</button>
+          </div>
+          <div class="timeline" id="activityTimeline">
+            <div class="timeline-loading">
+              <div class="loading-spinner"></div>
+              <span>Đang tải dữ liệu...</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Presence Donut -->
+        <div class="metric-card">
+          <div class="card-header">
+            <h2 class="card-title">📊 Phân bổ thời gian</h2>
+          </div>
+          <div class="chart-container chart-sm">
+            <canvas id="presenceChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Alert Panel -->
+        <div class="metric-card">
+          <div class="card-header">
+            <h2 class="card-title">🔔 Cảnh báo gần đây</h2>
+          </div>
+          <div class="alerts-list" id="alertsList">
+            <div class="no-alerts">
+              <span class="no-alerts-icon">✅</span>
+              <span>Không có cảnh báo</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- HISTORY TAB -->
+    <section class="tab-panel" id="panel-history">
+      <div class="metrics-grid">
+        <div class="metric-card card-full">
+          <div class="card-header">
+            <h2 class="card-title">📋 Lịch sử 7 ngày</h2>
+            <div class="date-selector">
+              <button class="date-btn active" onclick="selectPeriod(7, this)">7 ngày</button>
+              <button class="date-btn" onclick="selectPeriod(14, this)">14 ngày</button>
+              <button class="date-btn" onclick="selectPeriod(30, this)">30 ngày</button>
+            </div>
+          </div>
+          <div class="chart-container">
+            <canvas id="historyChart"></canvas>
+          </div>
+        </div>
+        <div class="metric-card card-full">
+          <div class="card-header">
+            <h2 class="card-title">📝 Nhật ký sự kiện</h2>
+          </div>
+          <div class="event-log" id="eventLog">
+            <p class="empty-state">Chưa có dữ liệu lịch sử. Kết nối ứng dụng Android để bắt đầu.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SETTINGS TAB -->
+    <section class="tab-panel" id="panel-settings">
+      <div class="metrics-grid">
+        <div class="metric-card">
+          <div class="card-header">
+            <h2 class="card-title">🔗 Kết nối dữ liệu</h2>
+          </div>
+          <div class="settings-form">
+            <div class="form-group">
+              <label class="form-label" for="driveUrl">Google Drive JSON URL</label>
+              <input class="form-input" id="driveUrl" type="url"
+                placeholder="https://drive.google.com/uc?id=YOUR_FILE_ID&export=download"
+                value="" />
+              <p class="form-hint">Dán link chia sẻ công khai của file <code>wificensor_status.json</code> từ Google Drive</p>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="refreshInterval">Tần suất làm mới</label>
+              <select class="form-select" id="refreshInterval">
+                <option value="30">30 giây</option>
+                <option value="60" selected>1 phút</option>
+                <option value="300">5 phút</option>
+              </select>
+            </div>
+            <button class="btn-primary" onclick="saveSettings()">💾 Lưu cài đặt</button>
+            <button class="btn-secondary" onclick="refreshData()">🔄 Kiểm tra kết nối</button>
+          </div>
+        </div>
+        <div class="metric-card">
+          <div class="card-header">
+            <h2 class="card-title">ℹ️ Hướng dẫn kết nối</h2>
+          </div>
+          <div class="guide-steps">
+            <div class="guide-step">
+              <div class="step-num">1</div>
+              <div class="step-text">
+                <strong>Cài ứng dụng Android</strong><br/>
+                Tải và cài ứng dụng WifiCensor trên điện thoại Android
+              </div>
+            </div>
+            <div class="guide-step">
+              <div class="step-num">2</div>
+              <div class="step-text">
+                <strong>Đăng nhập Google Drive</strong><br/>
+                Mở Settings trong app → Kết nối Google Drive
+              </div>
+            </div>
+            <div class="guide-step">
+              <div class="step-num">3</div>
+              <div class="step-text">
+                <strong>Lấy link chia sẻ</strong><br/>
+                File <code>wificensor_status.json</code> trong Drive → Share → "Anyone with link"
+              </div>
+            </div>
+            <div class="guide-step">
+              <div class="step-num">4</div>
+              <div class="step-text">
+                <strong>Dán link vào đây</strong><br/>
+                Chuyển link sang dạng direct download và dán vào ô trên
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="metric-card">
+          <div class="card-header">
+            <h2 class="card-title">🛡️ Quyền riêng tư</h2>
+          </div>
+          <div class="privacy-info">
+            <div class="privacy-item">
+              <span class="privacy-icon">✅</span>
+              <span>Dữ liệu xử lý 100% trên điện thoại</span>
+            </div>
+            <div class="privacy-item">
+              <span class="privacy-icon">✅</span>
+              <span>Chỉ kết quả phân tích (không phải raw data) được đồng bộ</span>
+            </div>
+            <div class="privacy-item">
+              <span class="privacy-icon">✅</span>
+              <span>Dashboard này không gửi bất kỳ dữ liệu nào</span>
+            </div>
+            <div class="privacy-item">
+              <span class="privacy-icon">✅</span>
+              <span>Không có tài khoản, không có đăng ký</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <span>Wifi-Censor · Local-first · Open Source</span>
+    <span>·</span>
+    <span id="footerRefresh">Auto-refresh: bật</span>
+  </footer>
+
+  <script src="js/charts.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
