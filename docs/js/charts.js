@@ -158,22 +158,26 @@ function initPresenceChart(presentMin, absentMin) {
   if (!ctx) return;
   if (presenceChartInst) presenceChartInst.destroy();
 
+  const isEmpty = presentMin === 0 && absentMin === 0;
+  const chartData = isEmpty ? [0, 1] : [presentMin, absentMin];
+  const bgColors = isEmpty 
+    ? ['transparent', 'rgba(255,255,255,0.05)'] 
+    : ['rgba(16,185,129,0.8)', 'rgba(107,114,128,0.4)'];
+  const borderColors = isEmpty
+    ? ['transparent', 'rgba(255,255,255,0.08)']
+    : ['rgba(16,185,129,1)', 'rgba(107,114,128,0.5)'];
+  const chartLabels = isEmpty ? ['Chưa có dữ liệu', 'Trống'] : ['Có mặt', 'Vắng phòng'];
+
   presenceChartInst = new Chart(ctx, {
     type: 'doughnut',
     data: {
-      labels: ['Có mặt', 'Vắng phòng'],
+      labels: chartLabels,
       datasets: [{
-        data: [presentMin, absentMin],
-        backgroundColor: [
-          'rgba(16,185,129,0.8)',
-          'rgba(107,114,128,0.4)',
-        ],
-        borderColor: [
-          'rgba(16,185,129,1)',
-          'rgba(107,114,128,0.5)',
-        ],
+        data: chartData,
+        backgroundColor: bgColors,
+        borderColor: borderColors,
         borderWidth: 2,
-        hoverOffset: 8,
+        hoverOffset: isEmpty ? 0 : 8,
       }]
     },
     options: {
@@ -192,6 +196,7 @@ function initPresenceChart(presentMin, absentMin) {
         },
         tooltip: {
           ...CHART_DEFAULTS.plugins.tooltip,
+          enabled: !isEmpty,
           callbacks: {
             label: (ctx) => ` ${ctx.parsed} phút (${Math.round(ctx.parsed / (presentMin + absentMin || 1) * 100)}%)`
           }

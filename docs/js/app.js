@@ -43,49 +43,25 @@ let githubConfig = {
   device: localStorage.getItem('device_view') || 'desktop'
 };
 
-/* ─── DEMO / FALLBACK DATA ────────────────── */
-/* Used when Google Drive is not yet configured */
-function generateDemoData() {
-  const now   = new Date();
-  const hours = [];
-  const rssi  = [];
-  const variance = [];
-
-  for (let i = 23; i >= 0; i--) {
-    const t = new Date(now - i * 3600000);
-    hours.push(`${String(t.getHours()).padStart(2,'0')}:00`);
-    // Simulate presence pattern: up at 7, out 10-12, home 13-23
-    const h = t.getHours();
-    const present = h >= 7 && !(h >= 10 && h < 12);
-    rssi.push(present ? -55 + (Math.random() - 0.5) * 12 : -75 + (Math.random() - 0.5) * 4);
-    variance.push(present ? 4 + Math.random() * 5 : 0.3 + Math.random() * 0.8);
-  }
-
-  const timeline = [
-    { time: '07:12', status: 'present', event: 'Phát hiện có người',      sub: 'Bắt đầu ngày mới' },
-    { time: '10:05', status: 'absent',  event: 'Ra khỏi phòng',           sub: 'Vắng phòng' },
-    { time: '12:48', status: 'present', event: 'Trở về',                  sub: 'Nghỉ trưa' },
-    { time: '13:30', status: 'present', event: 'Đang ngồi yên',           sub: 'Có thể đang làm việc' },
-    { time: '18:20', status: 'alert',   event: '⚠️ Bất động 45 phút',     sub: 'Kiểm tra sức khỏe' },
-    { time: '19:10', status: 'present', event: 'Di chuyển bình thường',   sub: 'Đã hoạt động trở lại' },
-  ];
-
+/* ─── PRODUCTION EMPTY STATE ──────────────── */
+/* Returns a clean empty structure for production when unconfigured */
+function generateEmptyState() {
   return {
-    lastUpdated:  now.toISOString(),
-    roomStatus:   'PRESENT',
-    confidence:   0.89,
-    activity:     'STATIONARY',
-    rssiVariance: 3.8,
-    rssiCurrent:  -58,
-    timeline,
+    lastUpdated:  "",
+    roomStatus:   'UNKNOWN',
+    confidence:   0,
+    activity:     '',
+    rssiVariance: 0,
+    rssiCurrent:  null,
+    timeline:     [],
     alerts:       [],
-    stats: { presentMinutes: 487, absentMinutes: 153 },
+    stats: { presentMinutes: 0, absentMinutes: 0 },
     history: {
-      labels:  ['T2','T3','T4','T5','T6','T7','CN'],
-      present: [520, 480, 550, 410, 500, 620, 700],
-      absent:  [100, 140, 70,  210, 120, 60,  20],
+      labels:  [],
+      present: [],
+      absent:  [],
     },
-    rssiHistory: { labels: hours, rssi, variance }
+    rssiHistory: { labels: [], rssi: [], variance: [] }
   };
 }
 
@@ -155,7 +131,7 @@ async function fetchData() {
   }
 
   setConnectionState(false);
-  return generateDemoData();
+  return generateEmptyState();
 }
 
 function setConnectionState(connected) {
@@ -165,6 +141,12 @@ function setConnectionState(connected) {
   
   const isGithubConfigured = githubConfig.owner && githubConfig.repo;
   const isAnyConfigured = isGithubConfigured || config.driveUrl;
+
+  // Show or hide the unconfigured banner in production mode
+  const banner = document.getElementById('unconfiguredBanner');
+  if (banner) {
+    banner.style.display = isAnyConfigured ? 'none' : 'flex';
+  }
 
   if (connected) {
     badge.className = 'connection-badge connected';
@@ -225,6 +207,9 @@ async function refreshData() {
       remotePanel.style.display = 'none';
     }
   }
+
+  // Scan all devices connected via GitHub in background
+  scanDevices();
 }
 
 function renderStatus(data) {
@@ -398,9 +383,9 @@ function selectPeriod(days, btn) {
 /* ─── INIT ───────────────────────────────── */
 window.addEventListener('DOMContentLoaded', () => {
   restoreSettingsUI();
+  setConnectionState(false);
   refreshData();
   startAutoRefresh();
-  setConnectionState(false);
 });
 
 /* ─── GITHUB REMOTE SYNC & CONTROL ───────── */
@@ -577,4 +562,143 @@ async function sendRemoteSensitivity(val) {
     sensVal.textContent = `${Number(val).toFixed(2)}x`;
   }
   await sendRemoteCommand('set_sensitivity', val);
+}
+
+/* ─── DEVICE AUTODISCOVERY & VIEWS ───────── */
+async function scanDevices() {
+  const container = document.getElementById('connectedDevicesList');
+  const badge = document.getElementById('devicesCountBadge');
+  
+  const isGithubConfigured = githubConfig.owner && githubConfig.repo;
+  if (!isGithubConfigured) {
+    if (container) {
+      container.innerHTML = `
+        <div class="empty-state" style="text-align: center; padding: 20px 0;">
+          <span style="font-size: 24px; display: block; margin-bottom: 8px;">🔌</span>
+          <span style="font-size: 13px; color: var(--text-secondary);">Chưa cấu hình đồng bộ GitHub</span>
+        </div>`;
+    }
+    if (badge) badge.textContent = 'Chưa kết nối';
+    return;
+  }
+
+  let activeCount = 0;
+  let totalCount = 0;
+  let html = '';
+
+  const devices = [
+    { id: 'desktop', name: 'Windows Desktop', icon: '💻' },
+    { id: 'mobile', name: 'Android Mobile', icon: '📱' }
+  ];
+
+  for (const dev of devices) {
+    const path = `docs/data/wificensor_status_${dev.id}.json`;
+    let url;
+    let headers = {};
+    if (githubConfig.token) {
+      url = `https://api.github.com/repos/${githubConfig.owner}/${githubConfig.repo}/contents/${path}?ref=${githubConfig.branch}&t=${Date.now()}`;
+      headers['Authorization'] = `token ${githubConfig.token}`;
+      headers['Accept'] = 'application/vnd.github.v3.raw';
+    } else {
+      url = `https://raw.githubusercontent.com/${githubConfig.owner}/${githubConfig.repo}/${githubConfig.branch}/${path}?t=${Date.now()}`;
+    }
+
+    try {
+      const res = await fetch(url, { headers, cache: 'no-store' });
+      if (res.ok) {
+        totalCount++;
+        let json;
+        if (githubConfig.token) {
+          const apiRes = await fetch(`https://api.github.com/repos/${githubConfig.owner}/${githubConfig.repo}/contents/${path}?ref=${githubConfig.branch}&t=${Date.now()}`, {
+            headers: { 'Authorization': `token ${githubConfig.token}` },
+            cache: 'no-store'
+          });
+          if (apiRes.ok) {
+            const data = await apiRes.json();
+            const content = atob(data.content.replace(/\s/g, ''));
+            json = JSON.parse(content);
+          } else {
+            throw new Error('API Content read failed');
+          }
+        } else {
+          json = await res.json();
+        }
+
+        // Calculate Online/Offline (updated within last 5 minutes)
+        let isOnline = false;
+        let timeStr = 'Không rõ';
+        if (json.lastUpdated) {
+          const lastTime = new Date(json.lastUpdated);
+          const diffMin = Math.round((new Date() - lastTime) / 60000);
+          isOnline = diffMin < 5;
+          if (diffMin < 1) timeStr = 'Vừa xong';
+          else if (diffMin < 60) timeStr = `${diffMin}p trước`;
+          else timeStr = lastTime.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+        }
+
+        const roomStatusMap = {
+          PRESENT: '🟢 Có mặt',
+          ABSENT: '⚪ Vắng phòng',
+          ALERT: '🟡 Cảnh báo',
+          DANGER: '🔴 Khẩn cấp',
+          UNKNOWN: '❓ Đang quét'
+        };
+
+        const statusLabel = roomStatusMap[(json.roomStatus || 'UNKNOWN').toUpperCase()] || 'Đang quét';
+        const isActive = githubConfig.device === dev.id;
+
+        if (isOnline) activeCount++;
+
+        html += `
+          <div class="device-item ${isActive ? 'active' : ''}" onclick="selectDeviceView('${dev.id}')">
+            <div class="device-info">
+              <div class="device-avatar">${dev.icon}</div>
+              <div class="device-details">
+                <span class="device-name">${dev.name}</span>
+                <span class="device-status-text">${statusLabel}</span>
+              </div>
+            </div>
+            <div class="device-meta">
+              <span class="device-status-badge ${isOnline ? 'online' : 'offline'}">${isOnline ? 'Online' : 'Offline'}</span>
+              <span class="device-time">${timeStr}</span>
+            </div>
+          </div>
+        `;
+      } else {
+        // Device file doesn't exist on git
+        html += `
+          <div class="device-item" style="opacity: 0.5; cursor: not-allowed;">
+            <div class="device-info">
+              <div class="device-avatar">${dev.icon}</div>
+              <div class="device-details">
+                <span class="device-name">${dev.name}</span>
+                <span class="device-status-text" style="color: var(--text-muted)">Chưa có dữ liệu</span>
+              </div>
+            </div>
+            <div class="device-meta">
+              <span class="device-status-badge offline">Offline</span>
+              <span class="device-time">--</span>
+            </div>
+          </div>
+        `;
+      }
+    } catch (e) {
+      console.warn(`[WifiCensor] Failed to scan device ${dev.id}`, e);
+    }
+  }
+
+  if (container) {
+    container.innerHTML = html;
+  }
+  if (badge) badge.textContent = `${activeCount} Online / ${totalCount} Cấu hình`;
+}
+
+function selectDeviceView(deviceId) {
+  localStorage.setItem('device_view', deviceId);
+  githubConfig.device = deviceId;
+  
+  const devSelect = document.getElementById('device-selector');
+  if (devSelect) devSelect.value = deviceId;
+  
+  refreshData();
 }

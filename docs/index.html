@@ -71,6 +71,16 @@
     <!-- DASHBOARD TAB -->
     <section class="tab-panel active" id="panel-dashboard">
 
+      <!-- Unconfigured Banner -->
+      <div class="unconfigured-banner" id="unconfiguredBanner" style="display: none;">
+        <span class="banner-icon">📡</span>
+        <div class="banner-content">
+          <h3>Hệ thống chưa được kết nối dữ liệu</h3>
+          <p>Ứng dụng đang hoạt động ở bản Product. Vui lòng chuyển sang tab <strong>Cài đặt</strong> để cấu hình thông số kết nối GitHub hoặc Google Drive.</p>
+        </div>
+        <button class="banner-btn" onclick="switchTab('settings')">Cấu hình ngay ➔</button>
+      </div>
+
       <!-- Status Hero -->
       <div class="status-hero" id="statusHero">
         <div class="status-beacon" id="statusBeacon">
@@ -154,6 +164,20 @@
             <div class="timeline-loading">
               <div class="loading-spinner"></div>
               <span>Đang tải dữ liệu...</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Connected Devices List -->
+        <div class="metric-card" id="connectedDevicesCard">
+          <div class="card-header">
+            <h2 class="card-title">📱 Thiết bị kết nối</h2>
+            <div class="card-badge" id="devicesCountBadge">0 Cấu hình</div>
+          </div>
+          <div class="device-list-container" id="connectedDevicesList">
+            <div class="timeline-loading">
+              <div class="loading-spinner"></div>
+              <span>Đang quét thiết bị...</span>
             </div>
           </div>
         </div>
