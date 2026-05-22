@@ -69,8 +69,8 @@
 
 ### Web Dashboard
 
-1. Fork repo → Enable GitHub Pages (thư mục `/dashboard`)
-2. Hoặc mở `dashboard/index.html` trực tiếp trên browser
+1. Enable GitHub Pages (chọn thư mục `/docs` trên nhánh `main`)
+2. Hoặc mở `docs/index.html` trực tiếp trên browser
 
 3. Cấu hình Google Drive:
    - Trên điện thoại: Settings → Bật Google Drive sync
@@ -123,7 +123,7 @@ Wifi-Censor/
 │   │   │       └── MainViewModel.kt
 │   │   └── AndroidManifest.xml
 │   └── build.gradle.kts
-├── dashboard/                    # Web Dashboard (GitHub Pages)
+├── docs/                         # Web Dashboard (GitHub Pages)
 │   ├── index.html
 │   ├── css/style.css
 │   └── js/
