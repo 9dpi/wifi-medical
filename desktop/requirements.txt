@@ -3,3 +3,4 @@ matplotlib>=3.8.0
 pillow>=10.0.0
 pywifi>=1.1.12
 comtypes>=1.4.0
+requests>=2.31.0

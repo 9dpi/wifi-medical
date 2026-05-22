@@ -48,6 +48,14 @@ class AppConfig:
     json_export_enabled: bool = True
     json_export_path: str = ""      # Default: desktop/data/wificensor_status.json
 
+    # GitHub Sync
+    github_sync_enabled: bool = False
+    github_token: str = ""
+    github_username: str = ""
+    github_repo: str = ""
+    github_branch: str = "main"
+    github_device_id: str = "desktop"
+
     # UI
     window_width: int = 1200
     window_height: int = 800

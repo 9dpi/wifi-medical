@@ -104,6 +104,37 @@ class GuideTab(ctk.CTkFrame):
             accent_color="#ef4444"
         )
 
+        # ── Section 5: Demo Mode Explanation ──────────────────────────────────
+        self.create_section(
+            title="5. GIẢI THÍCH VỀ CHẾ ĐỘ MÔ PHỎNG (DEMO)",
+            content=(
+                "• Nếu góc trên ứng dụng hiển thị 'Chế độ mô phỏng', hệ thống đang tự tạo tín hiệu giả lập do:\n"
+                "   1. Máy tính không có card mạng Wi-Fi vật lý hoặc card Wi-Fi đang bị tắt.\n"
+                "   2. Quyền vị trí (Location Services) trên Windows 10/11 đang bị tắt. Quyền này là bắt buộc để ứng dụng quét sóng Wi-Fi xung quanh.\n"
+                "   3. Ứng dụng chưa được chạy bằng quyền Quản trị viên (Administrator).\n"
+                "• Cách khắc phục:\n"
+                "   - Bật Wi-Fi và đảm bảo bạn có thể kết nối Internet.\n"
+                "   - Vào Cài đặt Windows → Privacy & Security → Location → Bật Location Services cho Windows và cho phép các ứng dụng desktop truy cập.\n"
+                "   - Nhấp chuột phải vào biểu tượng ứng dụng (hoặc run_desktop.bat) và chọn 'Run as Administrator' (Chạy dưới quyền quản trị)."
+            ),
+            accent_color="#f59e0b"
+        )
+
+        # ── Section 6: GitHub Sync Guidance ───────────────────────────────────
+        self.create_section(
+            title="6. HƯỚNG DẪN ĐỒNG BỘ GITHUB & ĐIỀU KHIỂN TỪ XA",
+            content=(
+                "• Cơ chế đồng bộ không máy chủ (Serverless) giúp bạn giám sát và điều khiển ứng dụng từ xa cực kỳ tiện lợi.\n"
+                "• Các bước thiết lập:\n"
+                "   1. Tạo một tài khoản GitHub phụ (khuyên dùng tài khoản bot riêng để tăng tính bảo mật) và fork/tạo repository chứa Dashboard.\n"
+                "   2. Tạo một Personal Access Token (PAT) trên GitHub chỉ cấp duy nhất quyền ghi nội dung (contents:write) vào repo này.\n"
+                "   3. Nhập Token PAT, Tên tài khoản, Tên repo, Nhánh (ví dụ: main) và Định danh thiết bị (ví dụ: desktop) vào tab [Cấu Hình].\n"
+                "   4. Bật công tắc [Bật đồng bộ qua GitHub], nhấn [Lưu Cấu Hình] và [Kiểm Tra Kết Nối] để xác nhận kết nối xanh.\n"
+                "   5. Mở Web Dashboard trên điện thoại hoặc trình duyệt khác, điền các thông tin y hệt để liên kết. Bạn có thể xem biểu đồ thời gian thực, mức sóng nền, độ nhạy và thực hiện TẮT CÒI BÁO ĐỘNG TỪ XA hoặc YÊU CẦU HIỆU CHỈNH."
+            ),
+            accent_color="#10b981"
+        )
+
     def create_section(self, title: str, content: str, accent_color: str):
         section_frame = ctk.CTkFrame(
             self.scroll_container, 

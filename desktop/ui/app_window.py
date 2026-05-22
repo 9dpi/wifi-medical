@@ -152,6 +152,7 @@ class AppWindow(ctk.CTk):
 
         # Start engines
         self.tracker.start()
+        self.exporter.sync_manager.start(self.handle_remote_command)
         self.poll_scanner()
 
     def _create_nav_btn(self, text: str, command) -> ctk.CTkButton:
@@ -320,6 +321,7 @@ class AppWindow(ctk.CTk):
         else:
             # Terminate loop cleanly
             self.scanner.stop()
+            self.exporter.sync_manager.stop()
             self.destroy()
 
     def _tray_show_window(self):
@@ -331,4 +333,27 @@ class AppWindow(ctk.CTk):
         if hasattr(self, "tray") and self.tray:
             self.tray.stop()
         self.scanner.stop()
+        self.exporter.sync_manager.stop()
         self.destroy()
+
+    def handle_remote_command(self, action, value):
+        """Processes remote control commands fetched from GitHub in a thread-safe way."""
+        def execute_cmd():
+            if action == "acknowledge_alert":
+                if self.has_active_alert:
+                    self.acknowledge_active_alert()
+                    print("[RemoteCommand] Tắt còi báo động từ xa thành công.")
+            elif action == "calibrate":
+                self.engine.recalibrate()
+                print("[RemoteCommand] Kích hoạt hiệu chỉnh sóng nền từ xa.")
+            elif action == "set_sensitivity":
+                try:
+                    sensitivity = float(value)
+                    get_config_manager().update(sensitivity=round(sensitivity, 2))
+                    self.settings_tab._load_settings_values()
+                    print(f"[RemoteCommand] Đặt độ nhạy từ xa thành {sensitivity}.")
+                except Exception as e:
+                    print(f"[RemoteCommand] Lỗi định dạng độ nhạy: {e}")
+        
+        # Queue execution on Tkinter's main thread
+        self.after(0, execute_cmd)

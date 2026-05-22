@@ -110,6 +110,26 @@
         </div>
       </div>
 
+      <!-- Remote Control Actions Bar -->
+      <div id="remote-control-panel" style="display: none; background: rgba(13,17,23,0.7); border: 1px solid rgba(255,255,255,0.08); border-radius: var(--radius-md); padding: 18px 24px; margin-bottom: 20px; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); align-items: center; justify-content: space-between; gap: 15px;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 20px;">🔧</span>
+          <div>
+            <div style="font-weight: 700; font-size: 15px;">ĐIỀU KHIỂN THIẾT BỊ TỪ XA</div>
+            <div style="font-size: 12px; color: var(--text-secondary);">Gửi tín hiệu trực tiếp đến thiết bị qua GitHub API</div>
+          </div>
+        </div>
+        <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px;">
+          <button id="remote-ack-alert" class="btn-secondary" onclick="sendRemoteAck()" style="background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.3); color: #f87171; font-weight: 700; height: 38px; padding: 0 16px; border-radius: 8px; cursor: pointer; transition: var(--transition-fast); display: none;">🔴 Tắt báo động từ xa</button>
+          <button class="btn-secondary" onclick="sendRemoteCalibrate()" style="background: rgba(6,182,212,0.1); border: 1px solid rgba(6,182,212,0.3); color: #22d3ee; font-weight: 700; height: 38px; padding: 0 16px; border-radius: 8px; cursor: pointer; transition: var(--transition-fast);">📡 Hiệu chỉnh phòng trống</button>
+          <div style="display: flex; align-items: center; gap: 10px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); padding: 5px 12px; border-radius: 8px;">
+            <label style="font-size: 13px; font-weight: 600; color: var(--text-secondary);" for="remote-sensitivity">Độ nhạy:</label>
+            <input type="range" id="remote-sensitivity" min="0.5" max="3.0" step="0.1" value="1.0" onchange="sendRemoteSensitivity(this.value)" style="width: 90px; accent-color: var(--accent-purple); cursor: pointer;" />
+            <span id="remote-sensitivity-value" style="font-family: 'JetBrains Mono'; font-weight: 700; font-size: 13px; color: var(--text-primary);">1.00x</span>
+          </div>
+        </div>
+      </div>
+
       <!-- Metrics Grid -->
       <div class="metrics-grid">
 
@@ -216,6 +236,44 @@
             </div>
             <button class="btn-primary" onclick="saveSettings()">💾 Lưu cài đặt</button>
             <button class="btn-secondary" onclick="refreshData()">🔄 Kiểm tra kết nối</button>
+          </div>
+        </div>
+
+        <div class="metric-card">
+          <div class="card-header">
+            <h2 class="card-title">🌐 Đồng bộ &amp; Điều khiển từ xa qua GitHub</h2>
+          </div>
+          <div class="settings-form">
+            <div class="form-group">
+              <label class="form-label" for="github-token">GitHub Token (PAT)</label>
+              <input class="form-input" id="github-token" type="password"
+                placeholder="ghp_xxxxxxxxxxxx" />
+              <p class="form-hint">⚠️ Sử dụng token có quyền contents:write. Khuyến cáo tạo tài khoản bot riêng để tăng tính bảo mật.</p>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Kho lưu trữ (Repository)</label>
+              <div style="display: flex; gap: 10px;">
+                <input class="form-input" id="github-owner" type="text" placeholder="Tài khoản (owner)" style="flex:1" />
+                <span style="align-self:center">/</span>
+                <input class="form-input" id="github-repo" type="text" placeholder="Tên repo" style="flex:1" />
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="github-branch">Nhánh (Branch)</label>
+              <input class="form-input" id="github-branch" type="text" value="main" />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="device-selector">Thiết bị muốn xem</label>
+              <select class="form-select" id="device-selector">
+                <option value="desktop" selected>💻 Windows Desktop (desktop)</option>
+                <option value="mobile">📱 Điện thoại Mobile (mobile)</option>
+              </select>
+            </div>
+            <div style="display: flex; gap: 10px;">
+              <button class="btn-primary" onclick="saveGithubSettings()" style="flex: 1;">💾 Lưu cấu hình</button>
+              <button class="btn-secondary" onclick="testGithubConnection()" style="flex: 1;">🔌 Kiểm tra kết nối</button>
+            </div>
+            <div style="margin-top: 10px; font-weight: bold; font-size: 13px; text-align: center;" id="github-sync-status"></div>
           </div>
         </div>
         <div class="metric-card">

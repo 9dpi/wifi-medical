@@ -34,6 +34,15 @@ let config       = loadConfig();
 let refreshTimer = null;
 let isConnected  = false;
 
+/* ─── GITHUB CONFIG ──────────────────────── */
+let githubConfig = {
+  token:  localStorage.getItem('github_token') || '',
+  owner:  localStorage.getItem('github_owner') || '',
+  repo:   localStorage.getItem('github_repo') || '',
+  branch: localStorage.getItem('github_branch') || 'main',
+  device: localStorage.getItem('device_view') || 'desktop'
+};
+
 /* ─── DEMO / FALLBACK DATA ────────────────── */
 /* Used when Google Drive is not yet configured */
 function generateDemoData() {
@@ -93,42 +102,82 @@ function saveConfig(cfg) {
 
 /* ─── DATA FETCHING ──────────────────────── */
 async function fetchData() {
-  if (!config.driveUrl) {
-    return generateDemoData();
+  const isGithubConfigured = githubConfig.owner && githubConfig.repo;
+  if (isGithubConfigured) {
+    const path = `docs/data/wificensor_status_${githubConfig.device}.json`;
+    let url;
+    let headers = {};
+    if (githubConfig.token) {
+      url = `https://api.github.com/repos/${githubConfig.owner}/${githubConfig.repo}/contents/${path}?ref=${githubConfig.branch}&t=${Date.now()}`;
+      headers['Authorization'] = `token ${githubConfig.token}`;
+      headers['Accept'] = 'application/vnd.github.v3.raw';
+    } else {
+      url = `https://raw.githubusercontent.com/${githubConfig.owner}/${githubConfig.repo}/${githubConfig.branch}/${path}?t=${Date.now()}`;
+    }
+
+    try {
+      const res = await fetch(url, { headers, cache: 'no-store' });
+      if (res.ok) {
+        let json;
+        if (githubConfig.token) {
+          const apiRes = await fetch(`https://api.github.com/repos/${githubConfig.owner}/${githubConfig.repo}/contents/${path}?ref=${githubConfig.branch}&t=${Date.now()}`, {
+            headers: { 'Authorization': `token ${githubConfig.token}` },
+            cache: 'no-store'
+          });
+          if (apiRes.ok) {
+            const data = await apiRes.json();
+            const content = atob(data.content.replace(/\s/g, ''));
+            json = JSON.parse(content);
+          } else {
+            throw new Error(`API returned ${apiRes.status}`);
+          }
+        } else {
+          json = await res.json();
+        }
+        setConnectionState(true);
+        return json;
+      }
+    } catch (err) {
+      console.warn('[WifiCensor] GitHub Fetch failed:', err);
+    }
   }
-  try {
-    const res = await fetch(config.driveUrl, { cache: 'no-store' });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return await res.json();
-  } catch (err) {
-    console.warn('[WifiCensor] Fetch failed, using demo data:', err);
-    setConnectionState(false);
-    return generateDemoData();
+
+  if (config.driveUrl) {
+    try {
+      const res = await fetch(config.driveUrl, { cache: 'no-store' });
+      if (res.ok) {
+        setConnectionState(true);
+        return await res.json();
+      }
+    } catch (err) {
+      console.warn('[WifiCensor] Drive Fetch failed:', err);
+    }
   }
+
+  setConnectionState(false);
+  return generateDemoData();
 }
 
 function setConnectionState(connected) {
   isConnected = connected;
   const badge = document.getElementById('connectionBadge');
   const text  = document.getElementById('connectionText');
+  
+  const isGithubConfigured = githubConfig.owner && githubConfig.repo;
+  const isAnyConfigured = isGithubConfigured || config.driveUrl;
+
   if (connected) {
     badge.className = 'connection-badge connected';
-    text.textContent = 'Đã kết nối';
+    text.textContent = isGithubConfigured ? `GitHub: ${githubConfig.device}` : 'Đã kết nối';
   } else {
-    badge.className = config.driveUrl ? 'connection-badge error' : 'connection-badge';
-    text.textContent = config.driveUrl ? 'Không kết nối được' : 'Chưa cấu hình';
+    badge.className = isAnyConfigured ? 'connection-badge error' : 'connection-badge';
+    text.textContent = isAnyConfigured ? 'Không kết nối được' : 'Chưa cấu hình';
   }
 }
 
 /* ─── RENDER ─────────────────────────────── */
 async function refreshData() {
   const data = await fetchData();
-
-  if (config.driveUrl) {
-    setConnectionState(true);
-  } else {
-    setConnectionState(false);
-  }
 
   renderStatus(data);
   renderTimeline(data.timeline || []);
@@ -150,6 +199,32 @@ async function refreshData() {
 
   // Last updated
   updateTimestamp(data.lastUpdated);
+
+  // Show/Hide Remote Control Panel
+  const remotePanel = document.getElementById('remote-control-panel');
+  if (remotePanel) {
+    const isGithubConfigured = githubConfig.owner && githubConfig.repo;
+    if (isGithubConfigured) {
+      remotePanel.style.display = 'flex';
+      
+      // Update sensitivity range slider UI if present in data
+      const sensSlider = document.getElementById('remote-sensitivity');
+      const sensVal = document.getElementById('remote-sensitivity-value');
+      if (sensSlider && sensVal && data.sensitivity !== undefined) {
+        sensSlider.value = data.sensitivity;
+        sensVal.textContent = `${Number(data.sensitivity).toFixed(2)}x`;
+      }
+
+      // Show/Hide remote ACK button based on alert status
+      const ackBtn = document.getElementById('remote-ack-alert');
+      if (ackBtn) {
+        const isAlert = data.roomStatus === 'ALERT' || data.roomStatus === 'DANGER';
+        ackBtn.style.display = isAlert ? 'inline-block' : 'none';
+      }
+    } else {
+      remotePanel.style.display = 'none';
+    }
+  }
 }
 
 function renderStatus(data) {
@@ -288,6 +363,19 @@ function restoreSettingsUI() {
   const intSel   = document.getElementById('refreshInterval');
   if (urlInput) urlInput.value = config.driveUrl || '';
   if (intSel)   intSel.value  = String(config.refreshInterval || 60);
+
+  // GitHub inputs
+  const tokenInput  = document.getElementById('github-token');
+  const ownerInput  = document.getElementById('github-owner');
+  const repoInput   = document.getElementById('github-repo');
+  const branchInput = document.getElementById('github-branch');
+  const devSelect   = document.getElementById('device-selector');
+
+  if (tokenInput)  tokenInput.value  = githubConfig.token || '';
+  if (ownerInput)  ownerInput.value  = githubConfig.owner || '';
+  if (repoInput)   repoInput.value   = githubConfig.repo || '';
+  if (branchInput) branchInput.value = githubConfig.branch || 'main';
+  if (devSelect)   devSelect.value   = githubConfig.device || 'desktop';
 }
 
 /* ─── AUTO REFRESH ───────────────────────── */
@@ -314,3 +402,179 @@ window.addEventListener('DOMContentLoaded', () => {
   startAutoRefresh();
   setConnectionState(false);
 });
+
+/* ─── GITHUB REMOTE SYNC & CONTROL ───────── */
+function saveGithubSettings() {
+  const token  = document.getElementById('github-token')?.value.trim()  || '';
+  const owner  = document.getElementById('github-owner')?.value.trim()  || '';
+  const repo   = document.getElementById('github-repo')?.value.trim()   || '';
+  const branch = document.getElementById('github-branch')?.value.trim() || 'main';
+  const device = document.getElementById('device-selector')?.value       || 'desktop';
+
+  localStorage.setItem('github_token', token);
+  localStorage.setItem('github_owner', owner);
+  localStorage.setItem('github_repo', repo);
+  localStorage.setItem('github_branch', branch);
+  localStorage.setItem('device_view', device);
+
+  githubConfig = { token, owner, repo, branch, device };
+
+  const statusEl = document.getElementById('github-sync-status');
+  if (statusEl) {
+    statusEl.style.color = '#10b981';
+    statusEl.textContent = '✅ Đã lưu cấu hình GitHub!';
+    setTimeout(() => statusEl.textContent = '', 3000);
+  }
+
+  refreshData();
+}
+
+async function testGithubConnection() {
+  const token  = document.getElementById('github-token')?.value.trim()  || '';
+  const owner  = document.getElementById('github-owner')?.value.trim()  || '';
+  const repo   = document.getElementById('github-repo')?.value.trim()   || '';
+  const statusEl = document.getElementById('github-sync-status');
+
+  if (!owner || !repo) {
+    if (statusEl) {
+      statusEl.style.color = '#ef4444';
+      statusEl.textContent = '❌ Vui lòng điền Owner và Repo!';
+    }
+    return;
+  }
+
+  if (statusEl) {
+    statusEl.style.color = '#06b6d4';
+    statusEl.textContent = '⏳ Đang kết nối thử...';
+  }
+
+  const url = `https://api.github.com/repos/${owner}/${repo}`;
+  const headers = token ? { 'Authorization': `token ${token}` } : {};
+
+  try {
+    const res = await fetch(url, { headers });
+    if (res.ok) {
+      const data = await res.json();
+      if (statusEl) {
+        statusEl.style.color = '#10b981';
+        statusEl.textContent = `✅ Kết nối thành công! Repo: ${data.name}`;
+      }
+    } else {
+      throw new Error(`HTTP ${res.status}`);
+    }
+  } catch (err) {
+    if (statusEl) {
+      statusEl.style.color = '#ef4444';
+      statusEl.textContent = `❌ Kết nối thất bại: ${err.message}`;
+    }
+  }
+}
+
+async function sendRemoteCommand(action, value = null) {
+  if (!githubConfig.token || !githubConfig.owner || !githubConfig.repo) {
+    alert('Vui lòng cấu hình GitHub Token và Repository trước khi điều khiển từ xa!');
+    return false;
+  }
+
+  const controlPath = 'docs/data/wificensor_control.json';
+  const getUrl = `https://api.github.com/repos/${githubConfig.owner}/${githubConfig.repo}/contents/${controlPath}`;
+  const headers = {
+    'Authorization': `token ${githubConfig.token}`,
+    'Content-Type': 'application/json'
+  };
+
+  let sha = null;
+  let commands = [];
+
+  try {
+    const res = await fetch(getUrl, { headers, cache: 'no-store' });
+    if (res.ok) {
+      const data = await res.json();
+      sha = data.sha;
+      commands = JSON.parse(atob(data.content.replace(/\s/g, '')));
+    }
+  } catch (e) {
+    console.log('[WifiCensor] Control file not found, creating new one');
+  }
+
+  commands.push({
+    id: Date.now(),
+    device: githubConfig.device,
+    action: action,
+    value: value,
+    timestamp: new Date().toISOString()
+  });
+
+  const newContent = btoa(unescape(encodeURIComponent(JSON.stringify(commands, null, 2))));
+  const body = {
+    message: `Remote command: ${action} from Web Dashboard`,
+    content: newContent,
+    branch: githubConfig.branch
+  };
+  if (sha) body.sha = sha;
+
+  try {
+    const putRes = await fetch(getUrl, {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify(body)
+    });
+    return putRes.ok;
+  } catch (err) {
+    console.error('[WifiCensor] Failed to send remote command:', err);
+    return false;
+  }
+}
+
+async function sendRemoteAck() {
+  const btn = document.getElementById('remote-ack-alert');
+  const origText = btn.textContent;
+  btn.textContent = '⏳ Đang tắt...';
+  btn.disabled = true;
+
+  const success = await sendRemoteCommand('acknowledge_alert');
+  if (success) {
+    btn.textContent = '✅ Đã gửi lệnh!';
+    setTimeout(() => {
+      btn.textContent = origText;
+      btn.disabled = false;
+      btn.style.display = 'none';
+    }, 2000);
+  } else {
+    btn.textContent = '❌ Lỗi!';
+    setTimeout(() => {
+      btn.textContent = origText;
+      btn.disabled = false;
+    }, 2000);
+  }
+}
+
+async function sendRemoteCalibrate() {
+  const btn = document.querySelector('[onclick="sendRemoteCalibrate()"]');
+  const origText = btn.textContent;
+  btn.textContent = '⏳ Đang gửi...';
+  btn.disabled = true;
+
+  const success = await sendRemoteCommand('calibrate');
+  if (success) {
+    btn.textContent = '✅ Đã gửi yêu cầu!';
+    setTimeout(() => {
+      btn.textContent = origText;
+      btn.disabled = false;
+    }, 2500);
+  } else {
+    btn.textContent = '❌ Thất bại!';
+    setTimeout(() => {
+      btn.textContent = origText;
+      btn.disabled = false;
+    }, 2500);
+  }
+}
+
+async function sendRemoteSensitivity(val) {
+  const sensVal = document.getElementById('remote-sensitivity-value');
+  if (sensVal) {
+    sensVal.textContent = `${Number(val).toFixed(2)}x`;
+  }
+  await sendRemoteCommand('set_sensitivity', val);
+}

@@ -165,6 +165,103 @@ class SettingsTab(ctk.CTkFrame):
         )
         self.btn_browse.pack(side="right")
 
+        # ── Group 4: GitHub Sync ──────────────────────────────────────────────
+        self.group_github = ctk.CTkFrame(self.scroll_container, fg_color="#0d1117", border_color="#1f2937", border_width=1, corner_radius=12)
+        self.group_github.pack(fill="x", pady=(0, 15), padx=5)
+
+        self.lbl_github_title = ctk.CTkLabel(self.group_github, text="4. KẾT NỐI ĐỒNG BỘ GITHUB & ĐIỀU KHIỂN TỪ XA", text_color="#f8fafc", font=ctk.CTkFont(family="Inter", size=16, weight="bold"))
+        self.lbl_github_title.pack(anchor="w", padx=15, pady=(15, 8))
+
+        # Toggle Sync Switch
+        row_sync_toggle = ctk.CTkFrame(self.group_github, fg_color="transparent")
+        row_sync_toggle.pack(fill="x", padx=15, pady=6)
+        ctk.CTkLabel(row_sync_toggle, text="Bật đồng bộ qua GitHub:", text_color="#cbd5e1", font=ctk.CTkFont(family="Inter", size=14, weight="bold")).pack(side="left")
+        
+        self.switch_github = ctk.CTkSwitch(
+            row_sync_toggle, text="", progress_color="#10b981",
+            command=self._handle_github_toggle
+        )
+        self.switch_github.pack(side="right")
+
+        # GitHub Token PAT (password input)
+        row_token = ctk.CTkFrame(self.group_github, fg_color="transparent")
+        row_token.pack(fill="x", padx=15, pady=6)
+        ctk.CTkLabel(row_token, text="GitHub Token (PAT):", text_color="#cbd5e1", font=ctk.CTkFont(family="Inter", size=14, weight="bold")).pack(side="left")
+        self.entry_token = ctk.CTkEntry(
+            row_token, fg_color="#1f2937", border_color="#374151",
+            text_color="#f8fafc", show="*", height=32, font=ctk.CTkFont(family="Inter", size=13), width=280
+        )
+        self.entry_token.pack(side="right")
+
+        # Username / Repo
+        row_user_repo = ctk.CTkFrame(self.group_github, fg_color="transparent")
+        row_user_repo.pack(fill="x", padx=15, pady=6)
+        ctk.CTkLabel(row_user_repo, text="Tài khoản / Tên Repo:", text_color="#cbd5e1", font=ctk.CTkFont(family="Inter", size=14, weight="bold")).pack(side="left")
+        
+        user_repo_sub = ctk.CTkFrame(row_user_repo, fg_color="transparent")
+        user_repo_sub.pack(side="right")
+        
+        self.entry_username = ctk.CTkEntry(
+            user_repo_sub, fg_color="#1f2937", border_color="#374151",
+            text_color="#f8fafc", placeholder_text="Tài khoản", height=32, font=ctk.CTkFont(family="Inter", size=13), width=130
+        )
+        self.entry_username.pack(side="left", padx=(0, 10))
+        
+        ctk.CTkLabel(user_repo_sub, text="/", text_color="#cbd5e1", font=ctk.CTkFont(family="Inter", size=14, weight="bold")).pack(side="left", padx=(0, 10))
+        
+        self.entry_repo = ctk.CTkEntry(
+            user_repo_sub, fg_color="#1f2937", border_color="#374151",
+            text_color="#f8fafc", placeholder_text="Tên repo", height=32, font=ctk.CTkFont(family="Inter", size=13), width=130
+        )
+        self.entry_repo.pack(side="left")
+
+        # Branch
+        row_branch = ctk.CTkFrame(self.group_github, fg_color="transparent")
+        row_branch.pack(fill="x", padx=15, pady=6)
+        ctk.CTkLabel(row_branch, text="Nhánh (Branch):", text_color="#cbd5e1", font=ctk.CTkFont(family="Inter", size=14, weight="bold")).pack(side="left")
+        self.entry_branch = ctk.CTkEntry(
+            row_branch, fg_color="#1f2937", border_color="#374151",
+            text_color="#f8fafc", height=32, font=ctk.CTkFont(family="Inter", size=13), width=280
+        )
+        self.entry_branch.pack(side="right")
+
+        # Device ID Selector
+        row_device = ctk.CTkFrame(self.group_github, fg_color="transparent")
+        row_device.pack(fill="x", padx=15, pady=6)
+        ctk.CTkLabel(row_device, text="Định danh Thiết bị (Device ID):", text_color="#cbd5e1", font=ctk.CTkFont(family="Inter", size=14, weight="bold")).pack(side="left")
+        self.entry_device = ctk.CTkEntry(
+            row_device, fg_color="#1f2937", border_color="#374151",
+            text_color="#f8fafc", height=32, font=ctk.CTkFont(family="Inter", size=13), width=280
+        )
+        self.entry_device.pack(side="right")
+        
+        # Info Box and Warning Label
+        row_warning = ctk.CTkFrame(self.group_github, fg_color="#181d26", corner_radius=8)
+        row_warning.pack(fill="x", padx=15, pady=(8, 10))
+        
+        self.lbl_warning_text = ctk.CTkLabel(
+            row_warning,
+            text="⚠️ Khuyến cáo bảo mật: Vui lòng chỉ dùng token (PAT) có quyền contents:write\nvà giới hạn trong kho lưu trữ này. Không sử dụng Token cá nhân có quyền quản trị tối cao.",
+            text_color="#f59e0b", font=ctk.CTkFont(family="Inter", size=12, weight="bold"), justify="left"
+        )
+        self.lbl_warning_text.pack(anchor="w", padx=15, pady=10)
+
+        # Button row: Save Config & Test Connection
+        row_buttons = ctk.CTkFrame(self.group_github, fg_color="transparent")
+        row_buttons.pack(fill="x", padx=15, pady=(10, 15))
+        
+        self.btn_save_github = ctk.CTkButton(
+            row_buttons, text="💾 Lưu Cấu Hình", fg_color="#10b981", hover_color="#059669",
+            text_color="#ffffff", height=34, font=ctk.CTkFont(family="Inter", size=13, weight="bold"), command=self._save_github_settings
+        )
+        self.btn_save_github.pack(side="left", fill="x", expand=True, padx=(0, 10))
+
+        self.btn_test_github = ctk.CTkButton(
+            row_buttons, text="🔌 Kiểm Tra Kết Nối", fg_color="#3b82f6", hover_color="#2563eb",
+            text_color="#ffffff", height=34, font=ctk.CTkFont(family="Inter", size=13, weight="bold"), command=self._test_github_connection
+        )
+        self.btn_test_github.pack(side="right", fill="x", expand=True)
+
         # Load values into UI elements
         self._load_settings_values()
 
@@ -201,6 +298,27 @@ class SettingsTab(ctk.CTkFrame):
         manager = get_config_manager()
         self.entry_path.delete(0, "end")
         self.entry_path.insert(0, str(manager.get_export_path()))
+
+        # GitHub sync fields
+        if cfg.github_sync_enabled:
+            self.switch_github.select()
+        else:
+            self.switch_github.deselect()
+
+        self.entry_token.delete(0, "end")
+        self.entry_token.insert(0, cfg.github_token)
+
+        self.entry_username.delete(0, "end")
+        self.entry_username.insert(0, cfg.github_username)
+
+        self.entry_repo.delete(0, "end")
+        self.entry_repo.insert(0, cfg.github_repo)
+
+        self.entry_branch.delete(0, "end")
+        self.entry_branch.insert(0, cfg.github_branch)
+
+        self.entry_device.delete(0, "end")
+        self.entry_device.insert(0, cfg.github_device_id)
 
     def refresh_scanned_aps(self):
         """Scans the airwaves and fills the drop-down menu with actual networks found."""
@@ -297,3 +415,63 @@ class SettingsTab(ctk.CTkFrame):
             # Safe reset
             self.lbl_baseline_var.configure(text="Hiệu chỉnh hoàn thành!")
             self._load_settings_values()
+
+    def _handle_github_toggle(self):
+        enabled = self.switch_github.get() == 1
+        get_config_manager().update(github_sync_enabled=enabled)
+
+    def _save_github_settings(self):
+        token = self.entry_token.get().strip()
+        username = self.entry_username.get().strip()
+        repo = self.entry_repo.get().strip()
+        branch = self.entry_branch.get().strip()
+        device_id = self.entry_device.get().strip()
+        
+        get_config_manager().update(
+            github_token=token,
+            github_username=username,
+            github_repo=repo,
+            github_branch=branch,
+            github_device_id=device_id
+        )
+        
+        self.btn_save_github.configure(text="✅ Đã Lưu Cấu Hinh!", fg_color="#10b981")
+        self.after(2000, lambda: self.btn_save_github.configure(text="💾 Lưu Cấu Hình", fg_color="#10b981"))
+
+    def _test_github_connection(self):
+        self.btn_test_github.configure(text="⏳ Đang kết nối...", state="disabled")
+        self.update()
+        
+        token = self.entry_token.get().strip()
+        username = self.entry_username.get().strip()
+        repo = self.entry_repo.get().strip()
+        branch = self.entry_branch.get().strip()
+        
+        def run_test():
+            import requests
+            url = f"https://api.github.com/repos/{username}/{repo}/branches/{branch}"
+            headers = {
+                'Authorization': f'token {token}' if token else '',
+                'Accept': 'application/vnd.github.v3+json'
+            }
+            try:
+                resp = requests.get(url, headers=headers, timeout=5)
+                if resp.status_code == 200:
+                    status_text = "✅ Kết nối thành công!"
+                    btn_color = "#10b981"
+                else:
+                    status_text = f"❌ Thất bại: HTTP {resp.status_code}"
+                    btn_color = "#ef4444"
+            except Exception as e:
+                status_text = "❌ Thất bại: Lỗi mạng"
+                btn_color = "#ef4444"
+                
+            def update_ui():
+                self.btn_test_github.configure(text=status_text, fg_color=btn_color, state="normal")
+                self.after(3000, lambda: self.btn_test_github.configure(text="🔌 Kiểm Tra Kết Nối", fg_color="#3b82f6"))
+            
+            self.after(0, update_ui)
+            
+        import threading
+        threading.Thread(target=run_test, daemon=True).start()
+

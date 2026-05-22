@@ -20,6 +20,10 @@ fully compatible with the Web Dashboard schema.
 import json
 import time
 import os
+import base64
+import queue
+import threading
+import requests
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -28,9 +32,155 @@ from desktop.app.presence_engine import PresenceResult, PresenceState, ActivityS
 from desktop.app.config import get_config_manager
 
 
+class GitHubSyncManager:
+    def __init__(self):
+        self.api_base = "https://api.github.com/repos"
+        self._queue = queue.Queue(maxsize=10)
+        self._thread = None
+        self._stop_event = threading.Event()
+        self._commands_callback = None
+
+    def start(self, commands_callback):
+        """Starts background worker thread for GitHub syncing."""
+        self._commands_callback = commands_callback
+        self._stop_event.clear()
+        self._thread = threading.Thread(target=self._worker_loop, daemon=True)
+        self._thread.start()
+
+    def stop(self):
+        self._stop_event.set()
+        if self._thread:
+            self._thread.join(timeout=2)
+
+    def queue_status_upload(self, status_data: dict):
+        """Queues status data to be uploaded in the background thread."""
+        cfg_manager = get_config_manager()
+        cfg = cfg_manager.config
+        if not cfg.github_sync_enabled:
+            return
+        
+        # Keep queue small, drop oldest if full
+        if self._queue.full():
+            try:
+                self._queue.get_nowait()
+            except queue.Empty:
+                pass
+        self._queue.put(status_data)
+
+    def _worker_loop(self):
+        last_poll_time = 0.0
+        while not self._stop_event.is_set():
+            # 1. Handle status upload if queued
+            try:
+                status_data = self._queue.get(timeout=0.5)
+                self._upload_status_sync(status_data)
+                self._queue.task_done()
+            except queue.Empty:
+                pass
+
+            # 2. Periodically poll for remote control commands (every 10 seconds)
+            now = time.time()
+            if now - last_poll_time >= 10.0:
+                last_poll_time = now
+                if self._commands_callback:
+                    self._poll_commands_sync(self._commands_callback)
+
+    def _upload_status_sync(self, status_data: dict) -> bool:
+        try:
+            cfg_manager = get_config_manager()
+            cfg = cfg_manager.config
+            if not cfg.github_sync_enabled or not cfg.github_token or not cfg.github_username or not cfg.github_repo:
+                return False
+
+            path = f"docs/data/wificensor_status_{cfg.github_device_id}.json"
+            url = f"{self.api_base}/{cfg.github_username}/{cfg.github_repo}/contents/{path}"
+            headers = {
+                'Authorization': f'token {cfg.github_token}',
+                'Accept': 'application/vnd.github.v3+json'
+            }
+
+            sha = None
+            resp = requests.get(url, headers=headers, timeout=5)
+            if resp.status_code == 200:
+                sha = resp.json().get('sha')
+
+            content_bytes = json.dumps(status_data, indent=2, ensure_ascii=False).encode('utf-8')
+            content_b64 = base64.b64encode(content_bytes).decode('utf-8')
+
+            data = {
+                "message": f"Auto-sync: Update status from desktop ({cfg.github_device_id})",
+                "content": content_b64,
+                "branch": cfg.github_branch
+            }
+            if sha:
+                data["sha"] = sha
+
+            put_resp = requests.put(url, headers=headers, json=data, timeout=5)
+            return put_resp.status_code in (200, 201)
+        except Exception as e:
+            print(f"[GitHubSync] Error uploading status: {e}")
+            return False
+
+    def _poll_commands_sync(self, callback) -> None:
+        try:
+            cfg_manager = get_config_manager()
+            cfg = cfg_manager.config
+            if not cfg.github_sync_enabled or not cfg.github_token or not cfg.github_username or not cfg.github_repo:
+                return
+
+            path = "docs/data/wificensor_control.json"
+            url = f"{self.api_base}/{cfg.github_username}/{cfg.github_repo}/contents/{path}"
+            headers = {
+                'Authorization': f'token {cfg.github_token}',
+                'Accept': 'application/vnd.github.v3+json'
+            }
+
+            resp = requests.get(url, headers=headers, timeout=5)
+            if resp.status_code != 200:
+                return
+
+            resp_json = resp.json()
+            sha = resp_json.get('sha')
+            content_b64 = resp_json.get('content', '')
+            content_decoded = base64.b64decode(content_b64.encode('utf-8')).decode('utf-8')
+            commands = json.loads(content_decoded)
+
+            if not isinstance(commands, list):
+                return
+
+            my_commands = [c for c in commands if c.get('device') == cfg.github_device_id]
+            if not my_commands:
+                return
+
+            # Execute commands through callback
+            for cmd in my_commands:
+                action = cmd.get('action')
+                value = cmd.get('value')
+                print(f"[GitHubSync] Executing remote command: {action} with value {value}")
+                callback(action, value)
+
+            # Clear executed commands and write back
+            remaining_commands = [c for c in commands if c.get('device') != cfg.github_device_id]
+            remaining_bytes = json.dumps(remaining_commands, indent=2, ensure_ascii=False).encode('utf-8')
+            remaining_b64 = base64.b64encode(remaining_bytes).decode('utf-8')
+
+            data = {
+                "message": f"Auto-sync: Clear executed commands for {cfg.github_device_id}",
+                "content": remaining_b64,
+                "branch": cfg.github_branch,
+                "sha": sha
+            }
+
+            requests.put(url, headers=headers, json=data, timeout=5)
+        except Exception as e:
+            print(f"[GitHubSync] Error polling remote commands: {e}")
+
+
+
 class JsonExporter:
     def __init__(self, db: Database):
         self.db = db
+        self.sync_manager = GitHubSyncManager()
 
     def export_snapshot(self, current_result: Optional[PresenceResult] = None) -> bool:
         """
@@ -190,6 +340,7 @@ class JsonExporter:
                 "activity": activity,
                 "rssiVariance": rssi_variance,
                 "rssiCurrent": rssi_current,
+                "sensitivity": cfg.sensitivity,
                 "timeline": timeline,
                 "alerts": alerts_json,
                 "stats": stats_json,
@@ -217,6 +368,10 @@ class JsonExporter:
             if export_path.exists():
                 export_path.unlink()
             temp_path.rename(export_path)
+
+            # Queue status for background GitHub upload
+            if cfg.github_sync_enabled:
+                self.sync_manager.queue_status_upload(snapshot_data)
 
             return True
 
