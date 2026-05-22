@@ -2,9 +2,27 @@
 
 > **Invisible Spatial Sensing** — Biến ngôi nhà thành môi trường cảm biến thông minh chỉ với điện thoại và router Wi-Fi có sẵn.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Platform: Android](https://img.shields.io/badge/Platform-Android%208%2B-blue.svg)](https://developer.android.com)
-[![Local-first](https://img.shields.io/badge/Privacy-Local--first-purple.svg)](docs/privacy.md)
+[![License: Apache-2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg?style=flat-square)](LICENSE)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/9dpi/wifi-medical/android.yml?branch=main&label=Build&logo=github&style=flat-square)](https://github.com/9dpi/wifi-medical/actions)
+[![GitHub Pages](https://img.shields.io/badge/GitHub%20Pages-Active-success?style=flat-square&logo=github)](https://9dpi.github.io/wifi-medical/)
+[![Platform: Android](https://img.shields.io/badge/Platform-Android%208%2B-blue.svg?style=flat-square)](https://developer.android.com)
+[![Local-first](https://img.shields.io/badge/Privacy-Local--first-purple.svg?style=flat-square)](docs/privacy.md)
+
+---
+
+## 🌐 Web Dashboard Demo & Live Site
+
+Hệ thống Web Dashboard được lưu tại thư mục `/docs` và tự động deploy qua **GitHub Pages**. Bạn có thể truy cập trực tiếp tại:
+
+👉 **Live Dashboard:** [https://9dpi.github.io/wifi-medical/](https://9dpi.github.io/wifi-medical/)
+
+### Giao Diện Dashboard (Dark Glassmorphism)
+
+Dưới đây là hình ảnh demo mô phỏng giao diện web với các thông số đo đạc thời gian thực từ tín hiệu Wi-Fi RSSI:
+
+![Web Dashboard Preview](docs/dashboard_mockup.png)
+
+---
 
 ---
 
@@ -143,6 +161,8 @@ Wifi-Censor/
 
 ---
 
-## 📜 License
+## License
 
-MIT License — xem [LICENSE](LICENSE)
+This project is licensed under the Apache License, Version 2.0 - see the [LICENSE](LICENSE) file for details.
+
+Copyright 2025 - 2026 Vu Quang Cuong. All rights reserved.

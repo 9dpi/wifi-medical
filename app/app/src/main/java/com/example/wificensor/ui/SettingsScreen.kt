@@ -1,8 +1,25 @@
+/*
+ * Copyright 2025 - 2026 Vu Quang Cuong
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.example.wificensor.ui
 
 import android.content.Context
 import android.content.Intent
 import android.widget.Toast
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -262,6 +279,72 @@ fun SettingsScreen(
                     Icon(Icons.Default.Refresh, null)
                     Spacer(Modifier.width(8.dp))
                     Text("Thiết Lập Lại Baseline")
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // --- Detailed Calibration Guide Card ---
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
+            shape = RoundedCornerShape(16.dp),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.15f))
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("📖", fontSize = 20.sp)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Hướng Dẫn Hiệu Chuẩn Sóng", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                }
+                Spacer(Modifier.height(12.dp))
+                
+                Text(
+                    "Phương pháp đo biến động sóng Wi-Fi (RSSI Variance) phụ thuộc lớn vào quá trình thiết lập nền ban đầu (Baseline calibration). Hãy làm theo các quy tắc sau để đạt độ chính xác cao nhất:",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    lineHeight = 16.sp
+                )
+                
+                Spacer(Modifier.height(12.dp))
+                
+                // Step 1
+                Row(modifier = Modifier.padding(vertical = 4.dp)) {
+                    Text("1️⃣", fontSize = 16.sp, modifier = Modifier.padding(end = 8.dp))
+                    Column {
+                        Text("Đặt điện thoại cố định", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
+                        Text("Đặt máy trên tủ, kệ hoặc bàn. Không di chuyển máy khi đang kích hoạt quét, vì rung lắc của điện thoại sẽ bị hiểu nhầm là có người di chuyển.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+                
+                // Step 2
+                Row(modifier = Modifier.padding(vertical = 4.dp)) {
+                    Text("2️⃣", fontSize = 16.sp, modifier = Modifier.padding(end = 8.dp))
+                    Column {
+                        Text("Dọn sạch phòng trống", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
+                        Text("Đảm bảo KHÔNG có bất kỳ ai (kể cả thú cưng) trong phòng. Việc di chuyển trong phòng lúc này sẽ làm nhiễu trị số nền rỗng và làm giảm độ nhạy phát hiện.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+
+                // Step 3
+                Row(modifier = Modifier.padding(vertical = 4.dp)) {
+                    Text("3️⃣", fontSize = 16.sp, modifier = Modifier.padding(end = 8.dp))
+                    Column {
+                        Text("Bật & Đợi 30 Giây", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
+                        Text("Nhấn nút 'Thiết Lập Lại Baseline' ở trên. Tránh đi vào phòng cho đến khi app chuyển sang trạng thái 'Vắng phòng'. Hệ thống sẽ tự động đo đạc 30 mẫu Wi-Fi nền trống.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+                
+                // Step 4
+                Row(modifier = Modifier.padding(vertical = 4.dp)) {
+                    Text("4️⃣", fontSize = 16.sp, modifier = Modifier.padding(end = 8.dp))
+                    Column {
+                        Text("Tinh chỉnh độ nhạy nếu cần", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
+                        Text("Nếu hệ thống báo động sai (nhầm vắng phòng thành có người), hãy TĂNG hệ số độ nhạy. Nếu không phát hiện được cử động nhỏ, hãy GIẢM hệ số này ở phần cài đặt phía trên.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                 }
             }
         }
