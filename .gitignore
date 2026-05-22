@@ -22,3 +22,16 @@ Thumbs.db
 
 # Log files
 *.log
+
+# Python virtual environments
+.venv/
+**/__pycache__/
+**/*.pyc
+
+# PyInstaller / Build artifacts
+dist/
+*.spec
+
+# Local application data and config
+desktop/data/*.db
+desktop/wificensor_config.json
