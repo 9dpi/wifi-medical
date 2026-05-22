@@ -30,6 +30,7 @@ from typing import Optional
 from desktop.app.database import Database
 from desktop.app.presence_engine import PresenceResult, PresenceState, ActivityState
 from desktop.app.config import get_config_manager
+from desktop.app.bio_estimator import BioSignalEstimator
 
 
 class GitHubSyncManager:
@@ -181,6 +182,7 @@ class JsonExporter:
     def __init__(self, db: Database):
         self.db = db
         self.sync_manager = GitHubSyncManager()
+        self.bio_estimator = BioSignalEstimator()
 
     def export_snapshot(self, current_result: Optional[PresenceResult] = None) -> bool:
         """
@@ -333,6 +335,18 @@ class JsonExporter:
                 rssi_values = [0]
                 variance_values = [0.0]
 
+            # 7. Bio-signal estimation
+            bio_data = {}
+            if current_result:
+                try:
+                    bio_result = self.bio_estimator.update(
+                        rssi_mean=float(current_result.rssi_mean),
+                        presence_result=current_result
+                    )
+                    bio_data = bio_result.to_dict()
+                except Exception as e:
+                    print(f"[BioEstimator] Error: {e}")
+
             snapshot_data = {
                 "lastUpdated": iso_now,
                 "roomStatus": room_status,
@@ -353,7 +367,9 @@ class JsonExporter:
                     "labels": rssi_labels,
                     "rssi": rssi_values,
                     "variance": variance_values
-                }
+                },
+                # Bio-signal fields (Wi-Fi estimates + sensor slot)
+                **bio_data
             }
 
             # Write file

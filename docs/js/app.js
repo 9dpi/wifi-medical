@@ -61,7 +61,12 @@ function generateEmptyState() {
       present: [],
       absent:  [],
     },
-    rssiHistory: { labels: [], rssi: [], variance: [] }
+    rssiHistory: { labels: [], rssi: [], variance: [] },
+    // Bio-signal fields (null = no data yet)
+    heartRate:   { bpm: null, confidence: 0, estimated: true, source: 'rssi_variance' },
+    bodyTemp:    { celsius: null, estimated: true, basis: 'activity', source: 'inference' },
+    peopleCount: { count: null, confidence: 0, estimated: true },
+    spo2:        { percent: null, estimated: true, source: 'unavailable' },
   };
 }
 
@@ -210,6 +215,9 @@ async function refreshData() {
 
   // Scan all devices connected via GitHub in background
   scanDevices();
+
+  // Bio-signal rendering
+  renderBioSignals(data);
 }
 
 function renderStatus(data) {
@@ -701,4 +709,158 @@ function selectDeviceView(deviceId) {
   if (devSelect) devSelect.value = deviceId;
   
   refreshData();
+}
+
+/* ─── BIO-SIGNAL RENDERING ────────────────── */
+function renderBioSignals(data) {
+
+  /* ── 1. Heart Rate ────────────────────────── */
+  const hrCard   = document.getElementById('bioCardHeart');
+  const hrBpmEl  = document.getElementById('heartRateBpm');
+  const hrFill   = document.getElementById('heartRateConfFill');
+  const hrConf   = document.getElementById('heartRateConfVal');
+  const hrHint   = document.getElementById('heartRateHint');
+  const hrSource = document.getElementById('heartRateSource');
+  const hrIcon   = document.getElementById('heartbeatIcon');
+
+  const hr = data.heartRate;
+  if (hr && hr.bpm !== null && hr.bpm !== undefined) {
+    const bpm  = Math.round(hr.bpm);
+    const conf = Math.round((hr.confidence || 0) * 100);
+
+    hrBpmEl.textContent = bpm;
+    hrFill.style.width  = `${conf}%`;
+    hrConf.textContent  = `${conf}%`;
+
+    // BPM category
+    let hint;
+    if      (bpm < 50)  hint = '💤 Rất chậm — ngủ sâu';
+    else if (bpm < 60)  hint = '😴 Chậm — đang nghỉ ngơi';
+    else if (bpm < 80)  hint = '✅ Bình thường';
+    else if (bpm < 100) hint = '🙂 Hơi nhanh';
+    else if (bpm < 120) hint = '🏃 Đang hoạt động';
+    else                hint = '⚠️ Nhịp tim cao';
+    hrHint.textContent = hint;
+
+    // Heartbeat animation speed (1 beat = 60/bpm seconds)
+    const period = (60 / bpm).toFixed(2);
+    if (hrIcon) hrIcon.style.setProperty('--heartbeat-duration', `${period}s`);
+
+    // Source badge
+    if (hrSource) {
+      hrSource.textContent = hr.source === 'max30102'
+        ? '🟢 Cảm biến MAX30102 · Dữ liệu thực'
+        : '📡 Ước tính từ tín hiệu Wi-Fi · Có thể kết nối MAX30102';
+    }
+    hrCard?.classList.remove('bio-no-data');
+  } else {
+    hrBpmEl.textContent = '--';
+    hrFill.style.width  = '0%';
+    hrConf.textContent  = '--%';
+    hrHint.textContent  = 'Chờ dữ liệu...';
+    hrCard?.classList.add('bio-no-data');
+  }
+
+  /* ── 2. Body Temperature ──────────────────── */
+  const tempCard   = document.getElementById('bioCardTemp');
+  const tempValEl  = document.getElementById('bodyTempValue');
+  const tempBasis  = document.getElementById('bodyTempBasis');
+  const tempNeedle = document.getElementById('tempNeedle');
+  const tempBadge  = document.getElementById('tempBadge');
+  const sensorBadge = document.getElementById('tempSensorBadge');
+
+  const bt = data.bodyTemp;
+  if (bt && bt.celsius !== null && bt.celsius !== undefined) {
+    const temp = bt.celsius;
+    tempValEl.textContent = temp.toFixed(1);
+
+    // Needle position on gradient bar (35°C–41°C range → 0–100%)
+    const pct = Math.min(100, Math.max(0, (temp - 35) / (41 - 35) * 100));
+    if (tempNeedle) tempNeedle.style.left = `${pct}%`;
+
+    // Basis label
+    const basisMap = {
+      sensor:   '🟢 Cảm biến hồng ngoại MLX90614',
+      activity: '📊 Suy luận từ hoạt động Wi-Fi',
+    };
+    if (tempBasis) tempBasis.textContent = basisMap[bt.basis] || bt.basis;
+
+    // Badge
+    if (tempBadge) {
+      if (bt.source === 'mlx90614') {
+        tempBadge.textContent = 'Cảm biến thực';
+        tempBadge.classList.remove('estimated-badge-warm');
+        tempBadge.classList.add('estimated-badge-blue');
+      } else {
+        tempBadge.textContent = 'Suy luận';
+        tempBadge.classList.remove('estimated-badge-blue');
+        tempBadge.classList.add('estimated-badge-warm');
+      }
+    }
+
+    // Sensor ready badge
+    if (sensorBadge) {
+      sensorBadge.style.display = bt.source === 'mlx90614' ? 'none' : 'flex';
+    }
+
+    // Fever / low temp coloring
+    tempCard?.classList.remove('bio-no-data', 'temp-fever', 'temp-low');
+    if (temp >= 38.0)      tempCard?.classList.add('temp-fever');
+    else if (temp < 36.0)  tempCard?.classList.add('temp-low');
+  } else {
+    tempValEl.textContent = '--.-';
+    if (tempNeedle) tempNeedle.style.left = '25%';
+    if (tempBasis)  tempBasis.textContent  = 'Chờ dữ liệu...';
+    tempCard?.classList.add('bio-no-data');
+  }
+
+  /* ── 3. People Count ──────────────────────── */
+  const peopleCard    = document.getElementById('bioCardPeople');
+  const peopleCountEl = document.getElementById('peopleCountValue');
+  const peopleFill    = document.getElementById('peopleConfFill');
+  const peopleConfEl  = document.getElementById('peopleConfVal');
+  const peopleDescEl  = document.getElementById('peopleCountDesc');
+  const iconsGrid     = document.getElementById('peopleIconsGrid');
+
+  const pc = data.peopleCount;
+  if (pc && pc.count !== null && pc.count !== undefined) {
+    const count = pc.count;
+    const conf  = Math.round((pc.confidence || 0) * 100);
+
+    peopleCountEl.textContent = count;
+    peopleFill.style.width    = `${conf}%`;
+    peopleConfEl.textContent  = `${conf}%`;
+
+    // Person icon grid (max 8 icons)
+    if (iconsGrid) {
+      if (count === 0) {
+        iconsGrid.innerHTML = '<span style="font-size:13px;color:var(--text-muted)">Phòng trống</span>';
+      } else {
+        iconsGrid.innerHTML = Array(Math.min(count, 8))
+          .fill(null)
+          .map(() => '<span class="person-icon-item">👤</span>')
+          .join('');
+      }
+    }
+
+    // Description
+    const descMap = {
+      0: 'Không phát hiện ai trong khu vực',
+      1: 'Phát hiện 1 người trong khu vực',
+      2: 'Phát hiện khoảng 2 người',
+      3: 'Phát hiện khoảng 3 người',
+    };
+    if (peopleDescEl) {
+      peopleDescEl.textContent = descMap[count] || `Phát hiện khoảng ${count} người`;
+    }
+
+    peopleCard?.classList.remove('bio-no-data');
+  } else {
+    peopleCountEl.textContent = '--';
+    peopleFill.style.width    = '0%';
+    peopleConfEl.textContent  = '--%';
+    if (peopleDescEl)  peopleDescEl.textContent  = 'Chờ dữ liệu...';
+    if (iconsGrid)     iconsGrid.innerHTML = '';
+    peopleCard?.classList.add('bio-no-data');
+  }
 }

@@ -205,7 +205,85 @@
           </div>
         </div>
 
+        <!-- ══ BIO-SIGNAL SECTION HEADER ══ -->
+        <div class="bio-section-header">
+          <span>🔬 Phân tích sinh học (Ước tính từ tín hiệu Wi-Fi · Không thay thế thiết bị y tế)</span>
+        </div>
+
+        <!-- Heart Rate Card -->
+        <div class="metric-card bio-card bio-card-heart bio-no-data" id="bioCardHeart">
+          <div class="card-header">
+            <h2 class="card-title">💓 Nhịp tim</h2>
+            <span class="estimated-badge estimated-badge-red">Ước tính · RSSI</span>
+          </div>
+          <div class="bio-main">
+            <span class="heartbeat-icon" id="heartbeatIcon">💓</span>
+            <div class="bio-number-wrap">
+              <span class="bio-number" id="heartRateBpm">--</span>
+              <span class="bio-unit">BPM</span>
+            </div>
+          </div>
+          <div class="bio-conf-row">
+            <span class="bio-conf-label">Độ tin cậy</span>
+            <div class="bio-conf-bar">
+              <div class="bio-conf-fill-red" id="heartRateConfFill" style="width:0%"></div>
+            </div>
+            <span class="bio-conf-val" id="heartRateConfVal">--%</span>
+          </div>
+          <div class="bio-desc" id="heartRateHint">Chờ dữ liệu...</div>
+          <div class="bio-hint-small" id="heartRateSource">📡 Có thể kết nối cảm biến MAX30102</div>
+        </div>
+
+        <!-- Body Temperature Card -->
+        <div class="metric-card bio-card bio-card-temp bio-no-data" id="bioCardTemp">
+          <div class="card-header">
+            <h2 class="card-title">🌡️ Nhiệt độ cơ thể</h2>
+            <span class="estimated-badge estimated-badge-warm" id="tempBadge">Suy luận</span>
+          </div>
+          <div class="bio-main">
+            <div class="bio-number-wrap">
+              <span class="bio-number" id="bodyTempValue">--.-</span>
+              <span class="bio-unit">°C</span>
+            </div>
+          </div>
+          <!-- Thermometer gradient bar -->
+          <div class="temp-gradient-bar">
+            <div class="temp-needle" id="tempNeedle" style="left: 25%"></div>
+          </div>
+          <div class="temp-scale-labels">
+            <span>35°</span><span>36°</span><span>37°</span><span>38°</span><span>41°</span>
+          </div>
+          <div class="bio-desc" id="bodyTempBasis" style="margin-top:10px">Chờ dữ liệu...</div>
+          <div class="sensor-ready-badge" id="tempSensorBadge">
+            📡 Sẵn sàng kết nối cảm biến IR MLX90614
+          </div>
+        </div>
+
+        <!-- People Count Card -->
+        <div class="metric-card bio-card bio-card-people bio-no-data" id="bioCardPeople">
+          <div class="card-header">
+            <h2 class="card-title">👥 Số người trong khu vực</h2>
+            <span class="estimated-badge estimated-badge-blue">Ước tính</span>
+          </div>
+          <div class="bio-main">
+            <div class="bio-number-wrap">
+              <span class="bio-number" id="peopleCountValue">--</span>
+              <span class="bio-unit">người</span>
+            </div>
+          </div>
+          <div class="people-icons-grid" id="peopleIconsGrid"></div>
+          <div class="bio-conf-row">
+            <span class="bio-conf-label">Độ tin cậy</span>
+            <div class="bio-conf-bar">
+              <div class="bio-conf-fill-blue" id="peopleConfFill" style="width:0%"></div>
+            </div>
+            <span class="bio-conf-val" id="peopleConfVal">--%</span>
+          </div>
+          <div class="bio-desc" id="peopleCountDesc">Chờ dữ liệu...</div>
+        </div>
+
       </div>
+
     </section>
 
     <!-- HISTORY TAB -->
