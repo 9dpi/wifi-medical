@@ -143,6 +143,9 @@ class BioSignalEstimator:
         self._pending_spo2: Optional[float] = None
         self._pending_temp: Optional[float] = None
 
+        # Last calculated result for UI access
+        self.last_result: Optional[BioSignalResult] = None
+
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
@@ -183,7 +186,7 @@ class BioSignalEstimator:
         if self._pending_spo2 is not None:
             actual_spo2 = self._pending_spo2
 
-        return BioSignalResult(
+        res = BioSignalResult(
             heart_rate_bpm        = actual_hr,
             heart_rate_confidence = hr_conf,
             heart_rate_estimated  = hr_estimated,
@@ -202,6 +205,8 @@ class BioSignalEstimator:
             sensor_spo2       = actual_spo2,
             sensor_temp       = self._pending_temp,
         )
+        self.last_result = res
+        return res
 
     def inject_sensor_data(
         self,

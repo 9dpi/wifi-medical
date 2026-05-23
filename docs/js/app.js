@@ -43,6 +43,35 @@ let githubConfig = {
   device: localStorage.getItem('device_view') || 'desktop'
 };
 
+// Auto-load config from URL Query Parameters for 1-click Bat file configuration integration
+try {
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.has('token') || urlParams.has('owner') || urlParams.has('repo')) {
+    const paramToken = urlParams.get('token') || '';
+    const paramOwner = urlParams.get('owner') || '';
+    const paramRepo = urlParams.get('repo') || '';
+    const paramDevice = urlParams.get('device') || 'desktop';
+    const paramBranch = urlParams.get('branch') || 'main';
+
+    localStorage.setItem('github_token', paramToken);
+    localStorage.setItem('github_owner', paramOwner);
+    localStorage.setItem('github_repo', paramRepo);
+    localStorage.setItem('device_view', paramDevice);
+    localStorage.setItem('github_branch', paramBranch);
+
+    githubConfig.token = paramToken;
+    githubConfig.owner = paramOwner;
+    githubConfig.repo = paramRepo;
+    githubConfig.device = paramDevice;
+    githubConfig.branch = paramBranch;
+
+    // Clean URL query parameters for security and aesthetic reasons
+    window.history.replaceState({}, document.title, window.location.pathname);
+  }
+} catch (e) {
+  console.error("Error auto-loading config from URL:", e);
+}
+
 /* ─── PRODUCTION EMPTY STATE ──────────────── */
 /* Returns a clean empty structure for production when unconfigured */
 function generateEmptyState() {

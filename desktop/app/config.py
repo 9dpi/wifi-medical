@@ -61,6 +61,12 @@ class AppConfig:
     window_height: int = 800
     start_minimized: bool = False
 
+    # AI Agent (MVP 2)
+    ai_enabled: bool = True
+    ollama_url: str = "http://localhost:11434"
+    ollama_model: str = "gemma4:e4b"  # Primary model, fallback handled by OllamaManager
+    ai_report_hour: int = 21           # Giờ tự động tạo báo cáo (21 = 21:00)
+
     def to_dict(self) -> dict:
         return asdict(self)
 

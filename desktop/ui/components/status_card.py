@@ -35,53 +35,63 @@ def interpolate_color(color_hex_1: str, color_hex_2: str, factor: float) -> str:
 
 class StatusCard(ctk.CTkFrame):
     def __init__(self, parent, **kwargs):
-        super().__init__(parent, fg_color="#0d1117", border_color="#1f2937", border_width=1, corner_radius=12, **kwargs)
+        super().__init__(parent, fg_color="#d4d0c8", border_color="#ffffff", border_width=2, corner_radius=0, **kwargs)
 
         self.state = PresenceState.UNKNOWN
         self.activity = ActivityState.UNKNOWN
         self.confidence = 0.0
 
         # Colors
-        self.BG_COLOR = "#0d1117"
+        self.BG_COLOR = "#ffffff"
         self.COLORS = {
-            "ABSENT": "#4b5563",      # Gray
-            "PRESENT_WALK": "#10b981", # Vibrant Green
-            "PRESENT_STAT": "#059669", # Muted Green
-            "PRESENT_SLEEP": "#6366f1",# Indigo
-            "ALERT": "#f59e0b",        # Orange
-            "DANGER": "#ef4444",       # Red
-            "UNKNOWN": "#06b6d4",      # Cyan
+            "ABSENT": "#808080",       # Muted Gray
+            "PRESENT_WALK": "#008000", # Pure Green
+            "PRESENT_STAT": "#008000", # Pure Green
+            "PRESENT_SLEEP": "#0000ff",# Muted Blue
+            "ALERT": "#ff8000",        # Orange
+            "DANGER": "#ff0000",       # Pure Red
+            "UNKNOWN": "#008080",      # Teal
         }
 
         # UI Setup
-        # Title Label
+        # Title Bar
+        title_bar = ctk.CTkFrame(self, fg_color="#000080", height=24, corner_radius=0)
+        title_bar.pack(fill="x", padx=2, pady=2)
+        
         self.title_lbl = ctk.CTkLabel(
-            self, text="TRẠNG THÁI PHÒNG HIỆN TẠI", text_color="#cbd5e1",
-            font=ctk.CTkFont(family="Inter", size=15, weight="bold")
+            title_bar, text="TRẠNG THÁI PHÒNG HIỆN TẠI", text_color="#ffffff",
+            font=ctk.CTkFont(family="Tahoma", size=13, weight="bold")
         )
-        self.title_lbl.pack(pady=(20, 5))
+        self.title_lbl.pack(anchor="w", padx=6, pady=2)
+
+        # Inset Bevel Frame for the canvas monitor
+        monitor_inset = ctk.CTkFrame(
+            self, fg_color="#ffffff",
+            border_color="#808080", border_width=2, corner_radius=0
+        )
+        monitor_inset.pack(pady=10)
 
         # Canvas for Pulsing
         self.canvas_size = 140
         self.canvas = tk.Canvas(
-            self, width=self.canvas_size, height=self.canvas_size,
+            monitor_inset, width=self.canvas_size, height=self.canvas_size,
             bg=self.BG_COLOR, highlightthickness=0
         )
-        self.canvas.pack(pady=10)
+        self.canvas.pack(padx=2, pady=2)
 
         # Status Label (Large display font)
         self.status_lbl = ctk.CTkLabel(
-            self, text="Đang Phân Tích...", text_color="#f8fafc",
-            font=ctk.CTkFont(family="Inter", size=32, weight="bold")
+            self, text="Đang Phân Tích...", text_color="#000000",
+            font=ctk.CTkFont(family="Tahoma", size=18, weight="bold")
         )
         self.status_lbl.pack(pady=5)
 
         # Sub-status Label (Medium display font)
         self.sub_lbl = ctk.CTkLabel(
-            self, text="Đang khởi động cảm biến...", text_color="#cbd5e1",
-            font=ctk.CTkFont(family="Inter", size=16, weight="bold")
+            self, text="Đang khởi động cảm biến...", text_color="#000000",
+            font=ctk.CTkFont(family="Tahoma", size=13)
         )
-        self.sub_lbl.pack(pady=(0, 20))
+        self.sub_lbl.pack(pady=(0, 15))
 
         # Pulse animation state
         self.pulse_radius = 20.0
@@ -125,7 +135,7 @@ class StatusCard(ctk.CTkFrame):
                 self.sub_lbl.configure(text="Phát hiện bất động quá lâu!", text_color=color)
         else:
             if state == PresenceState.PRESENT:
-                self.status_lbl.configure(text="🟢 CÓ NGƯỜI", text_color="#10b981")
+                self.status_lbl.configure(text="🟢 CÓ NGƯỜI", text_color="#008000")
                 act_str = "🛋️ Đang Nghỉ Ngơi / Ngồi Yên"
                 if activity == ActivityState.WALKING:
                     act_str = "🚶 Đang Đi Lại / Vận Động"
@@ -134,14 +144,14 @@ class StatusCard(ctk.CTkFrame):
                 elif activity == ActivityState.SLEEPING:
                     act_str = "😴 Đang Ngủ / Nằm Tĩnh Lặng"
                 
-                self.sub_lbl.configure(text=f"{act_str} ({int(confidence*100)}% độ tin cậy)", text_color="#cbd5e1")
+                self.sub_lbl.configure(text=f"{act_str} ({int(confidence*100)}% độ tin cậy)", text_color="#000000")
             elif state == PresenceState.ABSENT:
-                self.status_lbl.configure(text="⚪ PHÒNG TRỐNG", text_color="#8892a4")
-                self.sub_lbl.configure(text=f"Không phát hiện người ({int(confidence*100)}%)", text_color="#8892a4")
+                self.status_lbl.configure(text="⚪ PHÒNG TRỐNG", text_color="#808080")
+                self.sub_lbl.configure(text=f"Không phát hiện người ({int(confidence*100)}%)", text_color="#000000")
             else:
                 # Calibrating
-                self.status_lbl.configure(text="📡 ĐANG HIỆU CHỈNH", text_color="#06b6d4")
-                self.sub_lbl.configure(text=f"Đang phân tích nhiễu sóng nền ({int(confidence*100)}%)", text_color="#8892a4")
+                self.status_lbl.configure(text="📡 ĐANG HIỆU CHỈNH", text_color="#008080")
+                self.sub_lbl.configure(text=f"Đang phân tích nhiễu sóng nền ({int(confidence*100)}%)", text_color="#808080")
 
         # Adjust pulse speed based on activity
         if is_alert:
