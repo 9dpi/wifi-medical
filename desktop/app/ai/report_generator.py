@@ -29,6 +29,9 @@ import threading
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, TYPE_CHECKING
+from desktop.app.logger import get_logger
+
+logger = get_logger("ai.report_generator")
 
 if TYPE_CHECKING:
     from desktop.app.ai.agent import WifiCensorAgent
@@ -70,7 +73,7 @@ class ReportGenerator:
         self._stop_event.clear()
         self._scheduler_thread = threading.Thread(target=self._scheduler_loop, daemon=True)
         self._scheduler_thread.start()
-        print(f"[ReportGenerator] Scheduler bắt đầu — sẽ tạo báo cáo lúc {hour:02d}:00 mỗi ngày.")
+        logger.info(f"Scheduler bắt đầu — sẽ tạo báo cáo lúc {hour:02d}:00 mỗi ngày.")
 
     def stop_scheduler(self) -> None:
         self._stop_event.set()
@@ -89,7 +92,7 @@ class ReportGenerator:
             # Kiểm tra đúng giờ cài đặt và chưa tạo báo cáo hôm nay
             if now.hour == self._scheduled_hour and self._last_report_date != today_str:
                 self._last_report_date = today_str
-                print("[ReportGenerator] Đến giờ tạo báo cáo ngày...")
+                logger.info("Đến giờ tạo báo cáo ngày...")
                 thread = threading.Thread(target=self._generate_report, daemon=True)
                 thread.start()
 
@@ -184,11 +187,11 @@ Viết bằng tiếng Việt, đơn giản, dễ hiểu."""
             try:
                 return self._export_pdf(data, ai_comment)
             except ImportError:
-                print("[ReportGenerator] reportlab chưa cài — xuất báo cáo dạng text.")
+                logger.info("reportlab chưa cài — xuất báo cáo dạng text.")
                 return self._export_text(data, ai_comment)
 
         except Exception as e:
-            print(f"[ReportGenerator] Lỗi tạo báo cáo: {e}")
+            logger.error(f"Lỗi tạo báo cáo: {e}")
             return None
 
     def _export_pdf(self, data: dict, ai_comment: str) -> Path:
@@ -259,7 +262,7 @@ Viết bằng tiếng Việt, đơn giản, dễ hiểu."""
         ))
 
         doc.build(story)
-        print(f"[ReportGenerator] Đã xuất PDF: {output_path}")
+        logger.info(f"Đã xuất PDF: {output_path}")
         return output_path
 
     def _export_text(self, data: dict, ai_comment: str) -> Path:
@@ -294,5 +297,5 @@ Viết bằng tiếng Việt, đơn giản, dễ hiểu."""
 """.strip()
 
         output_path.write_text(content, encoding="utf-8")
-        print(f"[ReportGenerator] Đã xuất text report: {output_path}")
+        logger.info(f"Đã xuất text report: {output_path}")
         return output_path

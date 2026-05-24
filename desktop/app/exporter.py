@@ -31,6 +31,9 @@ from desktop.app.database import Database
 from desktop.app.presence_engine import PresenceResult, PresenceState, ActivityState
 from desktop.app.config import get_config_manager
 from desktop.app.bio_estimator import BioSignalEstimator
+from desktop.app.logger import get_logger
+
+logger = get_logger("exporter")
 
 
 class GitHubSyncManager:
@@ -119,7 +122,7 @@ class GitHubSyncManager:
             put_resp = requests.put(url, headers=headers, json=data, timeout=5)
             return put_resp.status_code in (200, 201)
         except Exception as e:
-            print(f"[GitHubSync] Error uploading status: {e}")
+            logger.error(f"Error uploading status: {e}")
             return False
 
     def _poll_commands_sync(self, callback) -> None:
@@ -157,7 +160,7 @@ class GitHubSyncManager:
             for cmd in my_commands:
                 action = cmd.get('action')
                 value = cmd.get('value')
-                print(f"[GitHubSync] Executing remote command: {action} with value {value}")
+                logger.info(f"Executing remote command: {action} with value {value}")
                 callback(action, value)
 
             # Clear executed commands and write back
@@ -174,7 +177,7 @@ class GitHubSyncManager:
 
             requests.put(url, headers=headers, json=data, timeout=5)
         except Exception as e:
-            print(f"[GitHubSync] Error polling remote commands: {e}")
+            logger.error(f"Error polling remote commands: {e}")
 
 
 
@@ -345,7 +348,7 @@ class JsonExporter:
                     )
                     bio_data = bio_result.to_dict()
                 except Exception as e:
-                    print(f"[BioEstimator] Error: {e}")
+                    logger.error(f"Error updating BioEstimator: {e}")
 
             snapshot_data = {
                 "lastUpdated": iso_now,
@@ -392,5 +395,5 @@ class JsonExporter:
             return True
 
         except Exception as e:
-            print(f"[Exporter] Error exporting JSON snapshot: {e}")
+            logger.error(f"Error exporting JSON snapshot: {e}")
             return False

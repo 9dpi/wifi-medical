@@ -34,4 +34,7 @@ dist/
 
 # Local application data and config
 desktop/data/*.db
+desktop/data/*.json
+desktop/data/*.log
+desktop/data/reports/
 desktop/wificensor_config.json

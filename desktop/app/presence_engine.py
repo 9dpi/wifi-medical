@@ -138,6 +138,8 @@ class PresenceEngine:
         # Determine presence and activity
         presence_thresh = self.baseline_variance * self.presence_threshold_multiplier
         moving_thresh = self.baseline_variance * self.moving_threshold_multiplier
+        # Ngưỡng phát hiện ngủ/nghỉ ngơi tĩnh lặng siêu nhạy
+        sleep_thresh = self.baseline_variance * (1.2 / self.sensitivity)
 
         if variance >= moving_thresh:
             presence = PresenceState.PRESENT
@@ -147,16 +149,18 @@ class PresenceEngine:
             presence = PresenceState.PRESENT
             activity = ActivityState.STATIONARY
             confidence = self._compute_confidence(variance, presence_thresh, moving_thresh)
+            
+            # Detect possible sleep (very low RSSI variance but present for a long time)
+            if variance < presence_thresh * 1.5:
+                activity = ActivityState.SLEEPING
+        elif variance >= sleep_thresh:
+            presence = PresenceState.PRESENT
+            activity = ActivityState.SLEEPING
+            confidence = self._compute_confidence(variance, sleep_thresh, presence_thresh)
         else:
             presence = PresenceState.ABSENT
             activity = ActivityState.UNKNOWN
-            confidence = self._compute_confidence(presence_thresh - variance, 0.0, presence_thresh)
-
-        # Detect possible sleep (very low RSSI variance but present for a long time)
-        if (presence == PresenceState.PRESENT and 
-                activity == ActivityState.STATIONARY and 
-                variance < presence_thresh * 1.5):
-            activity = ActivityState.SLEEPING
+            confidence = self._compute_confidence(sleep_thresh - variance, 0.0, sleep_thresh)
 
         # Coerce confidence between 0.3 and 0.99
         confidence = max(0.3, min(0.99, confidence))

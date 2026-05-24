@@ -23,6 +23,9 @@ import tkinter as tk
 import customtkinter as ctk
 from pathlib import Path
 from typing import List, Optional
+from desktop.app.logger import get_logger
+
+logger = get_logger("ui.app_window")
 
 # Core imports
 from desktop.app.config import get_config, get_config_manager
@@ -41,7 +44,7 @@ try:
     from desktop.app.ai.report_generator import ReportGenerator
     AI_AVAILABLE = True
 except ImportError as _e:
-    print(f"[AppWindow] AI modules not available: {_e}")
+    logger.warning(f"AI modules not available: {_e}")
     AI_AVAILABLE = False
 
 # UI imports
@@ -200,17 +203,17 @@ class AppWindow(ctk.CTk):
         """Initialize AI Agent components in background thread."""
         try:
             cfg = get_config()
-            print("[AppWindow] Khởi động AI Agent...")
+            logger.info("Khởi động AI Agent...")
             ollama = OllamaManager(base_url=cfg.ollama_url)
 
             if not ollama.health_check():
-                print("[AppWindow] Ollama không phản hồi — AI tắt.")
+                logger.warning("Ollama không phản hồi — AI tắt.")
                 return
 
             # Select best available model
             model = ollama.select_best_model()
             if not model:
-                print("[AppWindow] Không tìm thấy model nào.")
+                logger.warning("Không tìm thấy model nào.")
                 return
 
             # Initialize tool executor and agent
@@ -241,10 +244,10 @@ class AppWindow(ctk.CTk):
 
             # Warm up model in background
             ollama.warm_up()
-            print(f"[AppWindow] AI Agent sẵn sàng với model: {model}")
+            logger.info(f"AI Agent sẵn sàng với model: {model}")
 
         except Exception as e:
-            print(f"[AppWindow] Lỗi khởi động AI Agent: {e}")
+            logger.error(f"Lỗi khởi động AI Agent: {e}")
 
     def _connect_ai_to_ui(self):
         """Wire AI components to AIChatTab (must be called from main thread)."""
@@ -466,18 +469,18 @@ class AppWindow(ctk.CTk):
             if action == "acknowledge_alert":
                 if self.has_active_alert:
                     self.acknowledge_active_alert()
-                    print("[RemoteCommand] Tắt còi báo động từ xa thành công.")
+                    logger.info("Tắt còi báo động từ xa thành công.")
             elif action == "calibrate":
                 self.engine.recalibrate()
-                print("[RemoteCommand] Kích hoạt hiệu chỉnh sóng nền từ xa.")
+                logger.info("Kích hoạt hiệu chỉnh sóng nền từ xa.")
             elif action == "set_sensitivity":
                 try:
                     sensitivity = float(value)
                     get_config_manager().update(sensitivity=round(sensitivity, 2))
                     self.settings_tab._load_settings_values()
-                    print(f"[RemoteCommand] Đặt độ nhạy từ xa thành {sensitivity}.")
+                    logger.info(f"Đặt độ nhạy từ xa thành {sensitivity}.")
                 except Exception as e:
-                    print(f"[RemoteCommand] Lỗi định dạng độ nhạy: {e}")
+                    logger.error(f"Lỗi định dạng độ nhạy: {e}")
         
         # Queue execution on Tkinter's main thread
         self.after(0, execute_cmd)

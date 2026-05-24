@@ -28,8 +28,15 @@ Danh sách tools:
 """
 
 import time
+import json
+import re
+import requests
+from urllib.parse import quote_plus
 from datetime import datetime
 from typing import Optional, TYPE_CHECKING
+from desktop.app.logger import get_logger
+
+logger = get_logger("tools")
 
 if TYPE_CHECKING:
     from desktop.app.database import Database
@@ -39,7 +46,7 @@ if TYPE_CHECKING:
 
 # ── Tool Schema Definitions (gửi cho Ollama) ──────────────────────────────────
 
-TOOL_DEFINITIONS = [
+BASE_TOOL_DEFINITIONS = [
     {
         "type": "function",
         "function": {
@@ -183,6 +190,27 @@ TOOL_DEFINITIONS = [
                 "required": ["description"]
             }
         }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "search_internet",
+            "description": (
+                "Tìm kiếm thông tin thời gian thực, kiến thức y tế, tin tức mới từ internet. "
+                "Sử dụng khi người dùng hỏi các câu hỏi chung, kiến thức bệnh học, hướng dẫn chăm sóc y tế "
+                "hoặc bất kỳ thông tin thời gian thực nào không có sẵn trong hệ thống cục bộ."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "Từ khóa tìm kiếm bằng tiếng Việt hoặc tiếng Anh."
+                    }
+                },
+                "required": ["query"]
+            }
+        }
     }
 ]
 
@@ -200,12 +228,41 @@ class ToolExecutor:
         self.exporter = exporter
         self.cfg_manager = cfg_manager
 
+    def get_definitions(self) -> list:
+        """Trả về toàn bộ định nghĩa tool (bao gồm tool hệ thống và kỹ năng tự định nghĩa)."""
+        definitions = list(BASE_TOOL_DEFINITIONS)
+        try:
+            skills_file = self.cfg_manager.get_db_path().parent / "custom_skills.json"
+            if skills_file.exists():
+                with open(skills_file, "r", encoding="utf-8") as f:
+                    skills = json.load(f)
+                    for s in skills:
+                        name = s.get("name", "").strip()
+                        desc = s.get("description", "").strip()
+                        if name and desc:
+                            definitions.append({
+                                "type": "function",
+                                "function": {
+                                    "name": name,
+                                    "description": desc,
+                                    "parameters": {
+                                        "type": "object",
+                                        "properties": {},
+                                        "required": []
+                                    }
+                                }
+                            })
+        except Exception as e:
+            logger.error(f"Lỗi khi nạp kỹ năng tự định nghĩa vào schema: {e}")
+        return definitions
+
     def execute(self, tool_name: str, arguments: dict) -> str:
         """
         Điều phối tool_name đến hàm tương ứng.
         Trả về chuỗi kết quả (JSON string hoặc plain text tiếng Việt).
         """
         try:
+            # 1. Kiểm tra nếu là các tool hệ thống chính thức
             if tool_name == "query_health":
                 return self._query_health(**arguments)
             elif tool_name == "get_trend":
@@ -218,10 +275,91 @@ class ToolExecutor:
                 return self._explain_event(**arguments)
             elif tool_name == "record_anomaly_report":
                 return self._record_anomaly_report(**arguments)
-            else:
-                return f"[Lỗi] Tool '{tool_name}' không tồn tại."
+            elif tool_name == "search_internet":
+                return self._search_internet(**arguments)
+                
+            # 2. Kiểm tra nếu là kỹ năng tự định nghĩa (Skills)
+            skills_file = self.cfg_manager.get_db_path().parent / "custom_skills.json"
+            if skills_file.exists():
+                with open(skills_file, "r", encoding="utf-8") as f:
+                    skills = json.load(f)
+                    for s in skills:
+                        if s.get("name") == tool_name:
+                            logger.info(f"Kích hoạt kỹ năng tự định nghĩa '{tool_name}' thành công.")
+                            return s.get("response", "Kỹ năng rỗng.")
+
+            return f"[Lỗi] Tool '{tool_name}' không tồn tại."
         except Exception as e:
             return f"[Lỗi khi thực thi {tool_name}]: {str(e)}"
+
+    def _search_internet(self, query: str) -> str:
+        """Tìm kiếm thông tin thời gian thực từ internet qua Yahoo Search."""
+        logger.info(f"Đang thực hiện tìm kiếm internet cho truy vấn: '{query}'...")
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+        }
+        url = f"https://search.yahoo.com/search?p={quote_plus(query)}"
+        try:
+            resp = requests.get(url, headers=headers, timeout=6)
+            if resp.status_code != 200:
+                return f"Lỗi: Không thể kết nối tới Yahoo Search (HTTP {resp.status_code})"
+            
+            html_content = resp.text
+            results = []
+            
+            # Trích xuất kết quả bằng Regex
+            blocks = re.findall(r'<div[^>]*class="[^"]*algo[^"|a-zA-Z-]*sr[^"]*"[^>]*>.*?</div>\s*</div>\s*</li>', html_content, re.DOTALL)
+            if not blocks:
+                blocks = re.findall(r'<div[^>]*class="[^"]*algo[^"]*"[^>]*>.*?</div>\s*</div>\s*</li>', html_content, re.DOTALL)
+            if not blocks:
+                blocks = re.findall(r'<div[^>]*class="[^"]*algo[^"]*"[^>]*>.*?</div>\s*</div>', html_content, re.DOTALL)
+                
+            import html as html_lib
+            import urllib.parse
+            
+            for block in blocks[:5]:
+                # Trích xuất URL
+                href_match = re.search(r'<a[^>]*href="([^"]+)"', block)
+                url_str = href_match.group(1) if href_match else "Không nguồn"
+                
+                # Làm sạch URL chuyển hướng của Yahoo
+                if "/RU=" in url_str:
+                    try:
+                        url_str = urllib.parse.unquote(url_str.split("/RU=")[1].split("/")[0])
+                    except Exception:
+                        pass
+                
+                # Trích xuất Title
+                title = "Không tiêu đề"
+                h3_match = re.search(r'<h3[^>]*>(.*?)</h3>', block, re.DOTALL)
+                if h3_match:
+                    title = re.sub(r'<[^>]+>', '', h3_match.group(1)).strip()
+                    
+                # Trích xuất Snippet
+                snippet = "Không tóm tắt"
+                snippet_match = re.search(r'<div[^>]*class="[^"]*compText[^"]*"[^>]*>(.*?)</div>', block, re.DOTALL)
+                if snippet_match:
+                    snippet = re.sub(r'<[^>]+>', '', snippet_match.group(1)).strip()
+                
+                title = html_lib.unescape(title)
+                snippet = html_lib.unescape(snippet)
+                
+                # Làm sạch các ký tự HTML thô sơ khác
+                title = title.replace("&amp;", "&").replace("&quot;", '"').replace("&#x27;", "'")
+                snippet = snippet.replace("&amp;", "&").replace("&quot;", '"').replace("&#x27;", "'")
+                
+                results.append(f"- **{title}**\n  Nguồn: {url_str}\n  Tóm tắt: {snippet}")
+                
+            if results:
+                summary = "\n\n".join(results)
+                logger.info("Tìm kiếm internet thành công, trả kết quả về cho Agent.")
+                return summary
+            else:
+                logger.warning("Không tìm thấy kết quả tìm kiếm nào trên Yahoo Search.")
+                return "Không tìm thấy kết quả tìm kiếm nào phù hợp trên internet."
+        except Exception as e:
+            logger.error(f"Gặp lỗi khi tìm kiếm internet: {e}")
+            return f"Gặp lỗi hệ thống khi kết nối tìm kiếm: {str(e)}"
 
     # ── Tool 1: query_health ──────────────────────────────────────────────────
 

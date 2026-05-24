@@ -471,6 +471,92 @@ class SettingsTab(ctk.CTkFrame):
         )
         self.lbl_ai_status.pack(anchor="w", padx=15, pady=(0, 8))
 
+        # ── Group 6: Custom AI Skills ──────────────────────────────────────
+        self.group_skills = ctk.CTkFrame(
+            self.scroll_container, fg_color="#d4d0c8",
+            border_color="#ffffff", border_width=2, corner_radius=0
+        )
+        self.group_skills.pack(fill="x", pady=(0, 10), padx=5)
+
+        title_bar_skills = ctk.CTkFrame(self.group_skills, fg_color="#000080", height=24, corner_radius=0)
+        title_bar_skills.pack(fill="x", padx=2, pady=2)
+
+        ctk.CTkLabel(
+            title_bar_skills,
+            text="6. QUẢN LÝ KỸ NĂNG TRỢ LÝ AI (SKILLS)",
+            text_color="#ffffff",
+            font=ctk.CTkFont(family="Tahoma", size=13, weight="bold")
+        ).pack(anchor="w", padx=6, pady=2)
+
+        ctk.CTkLabel(
+            self.group_skills,
+            text="Đăng ký thêm kỹ năng động (medication schedule, emergency contacts,...) giúp AI trả lời thông minh.",
+            text_color="#555555",
+            font=ctk.CTkFont(family="Tahoma", size=11, slant="italic")
+        ).pack(anchor="w", padx=15, pady=(4, 8))
+
+        # Skill list box (scrollable inside settings)
+        self.skills_list_frame = ctk.CTkScrollableFrame(
+            self.group_skills, height=150, fg_color="#ffffff",
+            border_color="#808080", border_width=2, corner_radius=0
+        )
+        self.skills_list_frame.pack(fill="x", padx=15, pady=4)
+
+        # Form to add skill
+        form_frame = ctk.CTkFrame(self.group_skills, fg_color="transparent")
+        form_frame.pack(fill="x", padx=15, pady=8)
+
+        # Name
+        row_skill_name = ctk.CTkFrame(form_frame, fg_color="transparent")
+        row_skill_name.pack(fill="x", pady=2)
+        ctk.CTkLabel(
+            row_skill_name, text="Tên Kỹ Năng (vd: uong_thuoc):", text_color="#000000",
+            font=ctk.CTkFont(family="Tahoma", size=12, weight="bold")
+        ).pack(side="left")
+        self.entry_skill_name = ctk.CTkEntry(
+            row_skill_name, fg_color="#ffffff", border_color="#808080", border_width=2,
+            text_color="#000000", height=28, width=280, corner_radius=0,
+            font=ctk.CTkFont(family="Tahoma", size=12)
+        )
+        self.entry_skill_name.pack(side="right")
+
+        # Description
+        row_skill_desc = ctk.CTkFrame(form_frame, fg_color="transparent")
+        row_skill_desc.pack(fill="x", pady=2)
+        ctk.CTkLabel(
+            row_skill_desc, text="Mô Tả Kỹ Năng (vd: Lấy lịch uống thuốc):", text_color="#000000",
+            font=ctk.CTkFont(family="Tahoma", size=12, weight="bold")
+        ).pack(side="left")
+        self.entry_skill_desc = ctk.CTkEntry(
+            row_skill_desc, fg_color="#ffffff", border_color="#808080", border_width=2,
+            text_color="#000000", height=28, width=280, corner_radius=0,
+            font=ctk.CTkFont(family="Tahoma", size=12)
+        )
+        self.entry_skill_desc.pack(side="right")
+
+        # Response
+        row_skill_resp = ctk.CTkFrame(form_frame, fg_color="transparent")
+        row_skill_resp.pack(fill="x", pady=2)
+        ctk.CTkLabel(
+            row_skill_resp, text="Nội Dung Câu Trả Lời Của AI:", text_color="#000000",
+            font=ctk.CTkFont(family="Tahoma", size=12, weight="bold")
+        ).pack(side="left")
+        self.entry_skill_resp = ctk.CTkEntry(
+            row_skill_resp, fg_color="#ffffff", border_color="#808080", border_width=2,
+            text_color="#000000", height=28, width=280, corner_radius=0,
+            font=ctk.CTkFont(family="Tahoma", size=12)
+        )
+        self.entry_skill_resp.pack(side="right")
+
+        # Add skill button
+        self.btn_add_skill = ctk.CTkButton(
+            self.group_skills, text="➕ Thêm Kỹ Năng Mới", fg_color="#d4d0c8", hover_color="#e6e6e6",
+            text_color="#000000", border_width=2, border_color="#ffffff",
+            height=32, corner_radius=0, font=ctk.CTkFont(family="Tahoma", size=13, weight="bold"),
+            command=self._add_custom_skill
+        )
+        self.btn_add_skill.pack(anchor="e", padx=15, pady=(4, 12))
+
         # Load values into UI elements
         self._load_settings_values()
 
@@ -543,6 +629,9 @@ class SettingsTab(ctk.CTkFrame):
 
         self.entry_report_hour.delete(0, "end")
         self.entry_report_hour.insert(0, str(cfg.ai_report_hour))
+
+        # Load skills dynamically
+        self._load_skills_list_ui()
 
     def refresh_scanned_aps(self):
         """Scans the airwaves and fills the drop-down menu with actual networks found."""
@@ -765,3 +854,136 @@ class SettingsTab(ctk.CTkFrame):
 
         import threading
         threading.Thread(target=run_test, daemon=True).start()
+
+    def _get_skills_filepath(self):
+        manager = get_config_manager()
+        return manager.get_db_path().parent / "custom_skills.json"
+
+    def _load_skills_list_ui(self):
+        # Clear existing entries in self.skills_list_frame
+        for widget in self.skills_list_frame.winfo_children():
+            widget.destroy()
+
+        # Load skills from custom_skills.json
+        import json
+        skills_file = self._get_skills_filepath()
+        skills = []
+        if skills_file.exists():
+            try:
+                with open(skills_file, "r", encoding="utf-8") as f:
+                    skills = json.load(f)
+            except Exception as e:
+                print(f"[Settings] Error loading custom skills: {e}")
+
+        if not skills:
+            # Show empty state
+            lbl = ctk.CTkLabel(
+                self.skills_list_frame, text="Chưa có kỹ năng tự định nghĩa nào.",
+                text_color="#808080", font=ctk.CTkFont(family="Tahoma", size=12, slant="italic")
+            )
+            lbl.pack(pady=20)
+            return
+
+        for s in skills:
+            name = s.get("name", "")
+            desc = s.get("description", "")
+            resp = s.get("response", "")
+
+            # Skill row
+            row = ctk.CTkFrame(self.skills_list_frame, fg_color="transparent")
+            row.pack(fill="x", pady=4, padx=5)
+
+            # Left block: Info
+            info_lbl = ctk.CTkLabel(
+                row, text=f"🔧 {name}: {desc}\n   ↳ AI trả lời: {resp[:50]}...",
+                text_color="#000000", font=ctk.CTkFont(family="Tahoma", size=12),
+                justify="left", anchor="w"
+            )
+            info_lbl.pack(side="left", fill="x", expand=True, padx=5)
+
+            # Right block: Delete button
+            btn_del = ctk.CTkButton(
+                row, text="Xóa", fg_color="#d4d0c8", hover_color="#ef4444",
+                text_color="#000000", border_width=1, border_color="#808080",
+                width=60, height=24, corner_radius=0,
+                font=ctk.CTkFont(family="Tahoma", size=11, weight="bold"),
+                command=lambda n=name: self._delete_custom_skill(n)
+            )
+            btn_del.pack(side="right", padx=5)
+
+    def _add_custom_skill(self):
+        name = self.entry_skill_name.get().strip()
+        desc = self.entry_skill_desc.get().strip()
+        resp = self.entry_skill_resp.get().strip()
+
+        # Simple validation
+        if not name or not desc or not resp:
+            self.lbl_ai_status.configure(text="❌ Vui lòng nhập đầy đủ Tên, Mô tả và Câu trả lời cho kỹ năng", text_color="#ef4444")
+            return
+
+        # Sanitise name: must be alphanumeric / underscore, no spaces
+        import re
+        sanitized_name = re.sub(r'[^a-zA-Z0-9_]', '', name)
+        if sanitized_name != name or not name[0].isalpha():
+            self.lbl_ai_status.configure(text="❌ Tên kỹ năng phải bắt đầu bằng chữ cái và chỉ chứa chữ, số, gạch dưới (_)", text_color="#ef4444")
+            return
+
+        # Load, append, save
+        import json
+        skills_file = self._get_skills_filepath()
+        skills = []
+        if skills_file.exists():
+            try:
+                with open(skills_file, "r", encoding="utf-8") as f:
+                    skills = json.load(f)
+            except Exception:
+                pass
+
+        # Check for duplicates
+        if any(s.get("name") == name for s in skills):
+            self.lbl_ai_status.configure(text=f"❌ Tên kỹ năng '{name}' đã tồn tại", text_color="#ef4444")
+            return
+
+        skills.append({
+            "name": name,
+            "description": desc,
+            "response": resp
+        })
+
+        try:
+            with open(skills_file, "w", encoding="utf-8") as f:
+                json.dump(skills, f, indent=2, ensure_ascii=False)
+            self.lbl_ai_status.configure(text=f"✅ Đã thêm kỹ năng '{name}' thành công!", text_color="#15803d")
+            
+            # Clear entries
+            self.entry_skill_name.delete(0, "end")
+            self.entry_skill_desc.delete(0, "end")
+            self.entry_skill_resp.delete(0, "end")
+            
+            # Refresh list
+            self._load_skills_list_ui()
+        except Exception as e:
+            self.lbl_ai_status.configure(text=f"❌ Lỗi khi lưu kỹ năng: {e}", text_color="#ef4444")
+
+    def _delete_custom_skill(self, name: str):
+        import json
+        skills_file = self._get_skills_filepath()
+        if not skills_file.exists():
+            return
+
+        try:
+            with open(skills_file, "r", encoding="utf-8") as f:
+                skills = json.load(f)
+            
+            # Filter out
+            skills = [s for s in skills if s.get("name") != name]
+            
+            with open(skills_file, "w", encoding="utf-8") as f:
+                json.dump(skills, f, indent=2, ensure_ascii=False)
+                
+            self.lbl_ai_status.configure(text=f"✅ Đã xóa kỹ năng '{name}' thành công!", text_color="#15803d")
+            
+            # Refresh list
+            self._load_skills_list_ui()
+        except Exception as e:
+            self.lbl_ai_status.configure(text=f"❌ Lỗi khi xóa kỹ năng: {e}", text_color="#ef4444")

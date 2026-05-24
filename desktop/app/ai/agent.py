@@ -27,7 +27,10 @@ import time
 import threading
 from typing import Optional, List, Dict, Callable
 from desktop.app.ai.ollama_manager import OllamaManager, PREFERRED_MODELS
-from desktop.app.ai.tools import ToolExecutor, TOOL_DEFINITIONS
+from desktop.app.ai.tools import ToolExecutor
+from desktop.app.logger import get_logger
+
+logger = get_logger("agent")
 
 
 # System prompt tiếng Việt
@@ -135,7 +138,7 @@ class WifiCensorAgent:
 
             # Vòng lặp ReAct
             for round_num in range(self.MAX_TOOL_ROUNDS):
-                response = self.ollama.chat(messages=messages, tools=TOOL_DEFINITIONS)
+                response = self.ollama.chat(messages=messages, tools=self.tools.get_definitions())
                 msg = response.get("message", {})
                 tool_calls = msg.get("tool_calls", [])
 
@@ -171,7 +174,7 @@ class WifiCensorAgent:
                         except Exception:
                             raw_args = {}
 
-                    print(f"[Agent] Tool call [{round_num+1}]: {tool_name}({raw_args})")
+                    logger.info(f"Tool call [{round_num+1}]: {tool_name}({raw_args})")
 
                     # Thông báo UI đang xử lý
                     try:
@@ -181,7 +184,7 @@ class WifiCensorAgent:
 
                     # Thực thi tool
                     result_str = self.tools.execute(tool_name, raw_args)
-                    print(f"[Agent] Tool result: {result_str[:100]}...")
+                    logger.info(f"Tool result: {result_str[:100]}...")
 
                     tool_results.append({
                         "role": "tool",
@@ -200,7 +203,7 @@ class WifiCensorAgent:
 
         except Exception as e:
             error_msg = f"Đã xảy ra lỗi kỹ thuật: {str(e)}"
-            print(f"[Agent] Lỗi: {e}")
+            logger.error(f"Lỗi thực thi chat worker: {e}")
             if on_error:
                 try:
                     on_error(error_msg)

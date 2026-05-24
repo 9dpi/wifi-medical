@@ -32,6 +32,9 @@ import json
 from collections import deque
 from dataclasses import dataclass, field
 from typing import Optional, List, Callable, TYPE_CHECKING
+from desktop.app.logger import get_logger
+
+logger = get_logger("ai.fall_verifier")
 
 if TYPE_CHECKING:
     from desktop.app.ai.agent import WifiCensorAgent
@@ -153,7 +156,7 @@ class FallVerifier:
 
         # Nếu không có AI agent → fallback kích hoạt ngay
         if self._agent is None or not hasattr(self._agent, 'ask_sync'):
-            print("[FallVerifier] Không có AI agent — fallback trigger ngay.")
+            logger.warning("Không có AI agent — fallback trigger ngay.")
             self._do_trigger()
             return
 
@@ -202,7 +205,7 @@ fall | false_alarm | uncertain"""
                 else:
                     result["verdict"] = "fall"
             except Exception as e:
-                print(f"[FallVerifier] AI error: {e}")
+                logger.error(f"AI error: {e}")
                 result["verdict"] = "fall"  # Fail-safe: nếu lỗi → kích hoạt
             finally:
                 done_event.set()
@@ -214,11 +217,11 @@ fall | false_alarm | uncertain"""
         ai_answered = done_event.wait(timeout=self.AI_TIMEOUT_S)
 
         if not ai_answered:
-            print("[FallVerifier] AI timeout — fallback kích hoạt cảnh báo.")
+            logger.warning("AI timeout — fallback kích hoạt cảnh báo.")
             result["verdict"] = "fall"
 
         verdict = result["verdict"]
-        print(f"[FallVerifier] AI phán quyết: {verdict}")
+        logger.info(f"AI phán quyết: {verdict}")
 
         if verdict == "fall":
             self._do_trigger()
@@ -231,7 +234,7 @@ fall | false_alarm | uncertain"""
                     "AI phát hiện sự kiện bất thường nhưng chưa xác định được. Vui lòng kiểm tra ngay."
                 )
         else:
-            print("[FallVerifier] AI xác nhận: Báo động giả — bỏ qua.")
+            logger.info("AI xác nhận: Báo động giả — bỏ qua.")
 
     def _do_trigger(self) -> None:
         """Kích hoạt cảnh báo té ngã chính thức."""

@@ -249,21 +249,44 @@ class BioSignalEstimator:
             return 0, 0.10
 
         variance = presence.rssi_variance
-        activity = presence.activity
 
-        # Per-person variance budget (empirical):
-        #   Walking person generates ~6–8 variance units
-        #   Sitting person generates ~2–4 variance units
-        #   Sleeping person generates ~0.5–1.5 variance units
-        if activity == ActivityState.WALKING:
-            per_person = 6.5
-        elif activity == ActivityState.SLEEPING:
-            per_person = 1.0
+        # Quyết định trạng thái hoạt động vật lý dựa trên mức độ phương sai tuyệt đối
+        # nhằm tránh sai lệch đếm người khi độ nhạy (sensitivity) của presence engine làm thay đổi động các ngưỡng.
+        if variance < 1.5:
+            count_activity = ActivityState.SLEEPING
+        elif variance < 5.0:
+            count_activity = ActivityState.STATIONARY
         else:
-            per_person = 3.0
+            count_activity = ActivityState.WALKING
 
-        raw_count = max(1, round(variance / per_person))
-        raw_count = min(raw_count, 8)
+        # Áp dụng dải ngưỡng thực nghiệm chi tiết cho từng loại hoạt động vật lý
+        if count_activity == ActivityState.SLEEPING:
+            # Người nằm ngủ: 1 người sinh ra ~0.5–1.2, 2 người sinh ra ~1.2–2.2
+            if variance >= 3.2:
+                raw_count = 3
+            elif variance >= 1.2:
+                raw_count = 2
+            else:
+                raw_count = 1
+            per_person = 1.0
+        elif count_activity == ActivityState.STATIONARY:
+            # Người ngồi yên tĩnh: 1 người sinh ra ~2.0-3.5, 2 người sinh ra ~3.5-6.5
+            if variance >= 6.5:
+                raw_count = 3
+            elif variance >= 3.5:
+                raw_count = 2
+            else:
+                raw_count = 1
+            per_person = 3.0
+        else:  # WALKING
+            # Người đi lại: 1 người sinh ra ~6.0-8.0, 2 người sinh ra ~8.0-14.0
+            if variance >= 14.0:
+                raw_count = 3
+            elif variance >= 8.0:
+                raw_count = 2
+            else:
+                raw_count = 1
+            per_person = 6.5
 
         # Exponential moving average (alpha=0.25 ≈ time constant ~8 updates)
         alpha = 0.25

@@ -130,7 +130,7 @@ class AIChatTab(ctk.CTkFrame):
         # AI Status Badge (giả lập status)
         self._status_badge = ctk.CTkLabel(
             title_bar,
-            text=" gemma4:e4b (Online) ",
+            text=" Sẵn sàng hỗ trợ ",
             text_color="#10b981",
             font=ctk.CTkFont(family="Tahoma", size=12, weight="bold")
         )
@@ -525,7 +525,7 @@ class AIChatTab(ctk.CTkFrame):
                     if self._ollama:
                         status = self._ollama.get_status_text()
                         is_online = "Online" in status
-                        badge_txt = f" gemma4:e4b ({'Online' if is_online else 'Offline'}) "
+                        badge_txt = " Sẵn sàng hỗ trợ " if is_online else " Ngoại tuyến "
                         badge_color = "#10b981" if is_online else "#ef4444"
                         self.after(0, lambda t=badge_txt, c=badge_color: self._status_badge.configure(
                             text=t, text_color=c

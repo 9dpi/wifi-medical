@@ -31,10 +31,13 @@ if str(root_dir) not in sys.path:
     sys.path.insert(0, str(root_dir))
 
 import customtkinter as ctk
+from desktop.app.logger import get_logger
 from desktop.app.config import get_config_manager
 from desktop.app.database import Database
 from desktop.app.scanner import WifiScanner
 from desktop.ui.app_window import AppWindow
+
+logger = get_logger("main")
 
 
 def start_ollama_if_needed():
@@ -46,7 +49,7 @@ def start_ollama_if_needed():
     try:
         with urllib.request.urlopen("http://localhost:11434/api/tags", timeout=1.5) as resp:
             if resp.status == 200:
-                print("[Core] Ollama is already active and running.")
+                logger.info("Ollama is already active and running.")
                 return
     except Exception:
         pass
@@ -54,7 +57,7 @@ def start_ollama_if_needed():
     # 2. If not running, locate and start ollama.exe
     ollama_path = os.path.expandvars(r"%USERPROFILE%\AppData\Local\Programs\Ollama\ollama.exe")
     if os.path.exists(ollama_path):
-        print(f"[Core] Starting Ollama background service from: {ollama_path}")
+        logger.info(f"Starting Ollama background service from: {ollama_path}")
         try:
             # CREATE_NO_WINDOW = 0x08000000
             subprocess.Popen([ollama_path, "serve"], creationflags=0x08000000)
@@ -62,9 +65,9 @@ def start_ollama_if_needed():
             import time
             time.sleep(2)
         except Exception as e:
-            print(f"[Core] Failed to start Ollama: {e}")
+            logger.error(f"Failed to start Ollama: {e}")
     else:
-        print("[Core] Ollama is not installed in standard user path.")
+        logger.warning("Ollama is not installed in standard user path.")
 
 
 def main():
@@ -85,41 +88,41 @@ def main():
     start_ollama_if_needed()
 
     # 1. Config Manager
-    print("[Core] Loading configuration...")
+    logger.info("Loading configuration...")
     cfg_manager = get_config_manager()
     cfg = cfg_manager.config
 
     # 2. SQLite Database
     db_path = cfg_manager.get_db_path()
-    print(f"[Core] Initializing SQLite Database at: {db_path}")
+    logger.info(f"Initializing SQLite Database at: {db_path}")
     db = Database(db_path)
     # Purge historical entries older than 30 days
     db.purge_old_data()
 
     # 3. Wi-Fi Scanner thread
-    print(f"[Core] Initializing Wi-Fi Scanner (Interval: {cfg.scan_interval_sec}s)...")
+    logger.info(f"Initializing Wi-Fi Scanner (Interval: {cfg.scan_interval_sec}s)...")
     scanner = WifiScanner(interval_sec=cfg.scan_interval_sec)
-    print(f"[Core] Scanner Mode Detected: {scanner.mode.value.upper()}")
+    logger.info(f"Scanner Mode Detected: {scanner.mode.value.upper()}")
     if scanner.is_demo:
-        print("[Core] Note: Running in DEMO mode (realistic synthetic data fallback)")
+        logger.info("Note: Running in DEMO mode (realistic synthetic data fallback)")
     
-    print("[Core] Starting background scanning thread...")
+    logger.info("Starting background scanning thread...")
     scanner.start()
 
     # 4. App Window UI
-    print("[UI] Launching CustomTkinter Graphical User Interface...")
+    logger.info("Launching CustomTkinter Graphical User Interface...")
     app = AppWindow(db, scanner)
     
     try:
         app.mainloop()
     except KeyboardInterrupt:
-        print("[Core] Interrupted by keyboard...")
+        logger.info("Interrupted by keyboard...")
     finally:
-        print("[Core] Shutting down background scan threads...")
+        logger.info("Shutting down background scan threads...")
         scanner.stop()
-        print("[Core] Closing database connections...")
+        logger.info("Closing database connections...")
         db.close()
-        print("[Core] Exited cleanly.")
+        logger.info("Exited cleanly.")
 
 
 if __name__ == "__main__":
