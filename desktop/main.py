@@ -22,7 +22,11 @@ import sys
 from pathlib import Path
 
 # Add root folder to sys.path so we can import 'desktop.app' as package module
-root_dir = Path(__file__).parent.parent
+if getattr(sys, "frozen", False):
+    root_dir = Path(sys._MEIPASS)
+else:
+    root_dir = Path(__file__).resolve().parent.parent
+
 if str(root_dir) not in sys.path:
     sys.path.insert(0, str(root_dir))
 
@@ -31,6 +35,36 @@ from desktop.app.config import get_config_manager
 from desktop.app.database import Database
 from desktop.app.scanner import WifiScanner
 from desktop.ui.app_window import AppWindow
+
+
+def start_ollama_if_needed():
+    import os
+    import subprocess
+    import urllib.request
+    
+    # 1. Check if Ollama is already active
+    try:
+        with urllib.request.urlopen("http://localhost:11434/api/tags", timeout=1.5) as resp:
+            if resp.status == 200:
+                print("[Core] Ollama is already active and running.")
+                return
+    except Exception:
+        pass
+
+    # 2. If not running, locate and start ollama.exe
+    ollama_path = os.path.expandvars(r"%USERPROFILE%\AppData\Local\Programs\Ollama\ollama.exe")
+    if os.path.exists(ollama_path):
+        print(f"[Core] Starting Ollama background service from: {ollama_path}")
+        try:
+            # CREATE_NO_WINDOW = 0x08000000
+            subprocess.Popen([ollama_path, "serve"], creationflags=0x08000000)
+            # Short sleep to allow service startup
+            import time
+            time.sleep(2)
+        except Exception as e:
+            print(f"[Core] Failed to start Ollama: {e}")
+    else:
+        print("[Core] Ollama is not installed in standard user path.")
 
 
 def main():
@@ -46,6 +80,9 @@ def main():
     print("      [AP] WIFI-CENSOR DESKTOP GUARD v1.0.0")
     print("       Copyright (C) 2025-2026 Vu Quang Cuong")
     print("==============================================")
+
+    # 0. Auto-start Ollama if needed
+    start_ollama_if_needed()
 
     # 1. Config Manager
     print("[Core] Loading configuration...")

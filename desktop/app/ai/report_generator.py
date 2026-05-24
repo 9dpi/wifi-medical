@@ -49,7 +49,11 @@ class ReportGenerator:
     ):
         self.db = db
         self.bio_estimator = bio_estimator
-        self.reports_dir = reports_dir or Path(__file__).parent.parent.parent / "data" / "reports"
+        import sys
+        if getattr(sys, "frozen", False):
+            self.reports_dir = reports_dir or Path(sys.executable).parent / "data" / "reports"
+        else:
+            self.reports_dir = reports_dir or Path(__file__).parent.parent.parent / "data" / "reports"
         self.reports_dir.mkdir(parents=True, exist_ok=True)
         self._agent: Optional["WifiCensorAgent"] = None
         self._scheduled_hour: int = 21  # 21:00

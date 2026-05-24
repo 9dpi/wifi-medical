@@ -86,7 +86,7 @@ class WifiScanner:
             result = subprocess.run(
                 ["netsh", "wlan", "show", "networks", "mode=bssid"],
                 capture_output=True, text=True, timeout=5, encoding="utf-8",
-                errors="replace"
+                errors="replace", creationflags=0x08000000
             )
             if "SSID" in result.stdout and "Signal" in result.stdout:
                 return ScannerMode.REAL_NETSH
@@ -171,7 +171,7 @@ class WifiScanner:
         result = subprocess.run(
             ["netsh", "wlan", "show", "networks", "mode=bssid"],
             capture_output=True, text=True, timeout=5, encoding="utf-8",
-            errors="replace"
+            errors="replace", creationflags=0x08000000
         )
         return _parse_netsh_output(result.stdout)
 

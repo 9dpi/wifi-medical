@@ -40,7 +40,8 @@ def get_active_wifi_ssid() -> str:
         # Run netsh to get connected SSID on Windows
         result = subprocess.run(
             ["netsh", "wlan", "show", "interfaces"],
-            capture_output=True, text=True, timeout=1.5, encoding="utf-8", errors="replace"
+            capture_output=True, text=True, timeout=1.5, encoding="utf-8", errors="replace",
+            creationflags=0x08000000
         )
         for line in result.stdout.splitlines():
             line = line.strip()

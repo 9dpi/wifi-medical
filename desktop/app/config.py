@@ -19,12 +19,15 @@ Stores settings in the same directory as the app (portable mode).
 
 import json
 import os
+import sys
 from pathlib import Path
 from dataclasses import dataclass, asdict
 
 
 def _get_config_dir() -> Path:
-    """Portable mode: config sits next to main.py (desktop/ folder)."""
+    """Portable mode: config sits next to main.py (desktop/ folder) or next to the compiled executable."""
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).parent
     return Path(__file__).parent.parent
 
 

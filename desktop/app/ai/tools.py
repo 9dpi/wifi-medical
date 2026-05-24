@@ -154,6 +154,35 @@ TOOL_DEFINITIONS = [
                 "required": ["event_id"]
             }
         }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "record_anomaly_report",
+            "description": (
+                "Ghi nhận một báo cáo sai lệch dữ liệu, báo động sai, hoặc lỗi hệ thống từ người dùng. "
+                "Lưu thông tin chi tiết vào tệp tin báo cáo lỗi cục bộ để người dùng có thể xem lại hoặc gửi cho kỹ thuật viên. "
+                "Dùng khi người dùng yêu cầu 'lưu lỗi', 'ghi nhận sai lệch', 'tạo báo cáo lỗi' hoặc phản ánh dữ liệu không chính xác."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "description": {
+                        "type": "string",
+                        "description": "Mô tả chi tiết về sai số, lỗi dữ liệu hoặc hành vi bất thường của hệ thống bằng tiếng Việt."
+                    },
+                    "timestamp_info": {
+                        "type": "string",
+                        "description": "Thời điểm hoặc khoảng thời gian xảy ra lỗi (ví dụ: '02:05 sáng', 'hôm qua lúc 21:00')."
+                    },
+                    "expected_behavior": {
+                        "type": "string",
+                        "description": "Hành vi đúng hoặc mong đợi của hệ thống (ví dụ: 'chỉ nên báo 1 người', 'không nên phát cảnh báo té ngã')."
+                    }
+                },
+                "required": ["description"]
+            }
+        }
     }
 ]
 
@@ -187,6 +216,8 @@ class ToolExecutor:
                 return self._adjust_sensitivity(**arguments)
             elif tool_name == "explain_event":
                 return self._explain_event(**arguments)
+            elif tool_name == "record_anomaly_report":
+                return self._record_anomaly_report(**arguments)
             else:
                 return f"[Lỗi] Tool '{tool_name}' không tồn tại."
         except Exception as e:
@@ -429,3 +460,46 @@ class ToolExecutor:
 
         import json
         return json.dumps(context, ensure_ascii=False, indent=2)
+
+    # ── Tool 6: record_anomaly_report ─────────────────────────────────────────
+
+    def _record_anomaly_report(self, description: str, timestamp_info: str = "", expected_behavior: str = "") -> str:
+        """Ghi nhận báo cáo sai sót dữ liệu từ người dùng."""
+        try:
+            import os
+            import json
+            import time
+            from pathlib import Path
+            
+            data_dir = self.cfg_manager.get_db_path().parent
+            data_dir.mkdir(parents=True, exist_ok=True)
+            reports_file = data_dir / "anomaly_reports.json"
+            
+            reports = []
+            if reports_file.exists():
+                try:
+                    with open(reports_file, "r", encoding="utf-8") as f:
+                        reports = json.load(f)
+                except Exception:
+                    pass
+            
+            new_report = {
+                "id": int(time.time()),
+                "created_at": time.strftime("%Y-%m-%d %H:%M:%S"),
+                "timestamp_info": timestamp_info or "Không xác định",
+                "description": description,
+                "expected_behavior": expected_behavior or "Không xác định",
+                "status": "Chờ kỹ thuật xử lý"
+            }
+            reports.append(new_report)
+            
+            with open(reports_file, "w", encoding="utf-8") as f:
+                json.dump(reports, f, indent=2, ensure_ascii=False)
+                
+            return (
+                f"✅ Đã ghi nhận báo cáo lỗi thành công (Mã số: #{new_report['id']}).\n"
+                f"Tệp báo cáo đã được lưu tại: `data/anomaly_reports.json`.\n"
+                f"Bạn có thể mở tệp này để kiểm tra chéo hoặc gửi trực tiếp cho kỹ thuật viên."
+            )
+        except Exception as e:
+            return f"❌ Lỗi khi lưu báo cáo: {str(e)}"

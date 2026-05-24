@@ -21,13 +21,13 @@ import tkinter as tk
 import customtkinter as ctk
 from desktop.app.presence_engine import PresenceState, ActivityState
 
-
 def interpolate_color(color_hex_1: str, color_hex_2: str, factor: float) -> str:
-    """Interpolates between two hex colors. factor: 0.0 -> color_1, 1.0 -> color_2."""
+    """Interpolates between two hex colors. Clamps factor and clips channels to [0, 255]."""
     try:
+        factor = max(0.0, min(1.0, factor))
         c1 = [int(color_hex_1[i:i+2], 16) for i in (1, 3, 5)]
         c2 = [int(color_hex_2[i:i+2], 16) for i in (1, 3, 5)]
-        c = [int(a + (b - a) * factor) for a, b in zip(c1, c2)]
+        c = [max(0, min(255, int(a + (b - a) * factor))) for a, b in zip(c1, c2)]
         return f"#{c[0]:02x}{c[1]:02x}{c[2]:02x}"
     except Exception:
         return color_hex_2
