@@ -33,10 +33,10 @@ class HistoryTab(ctk.CTkFrame):
         self.selected_filter_days = 1 # 1: 24h, 7: 7 days, 30: 30 days
 
         # Grid config
-        self.grid_columnconfigure(0, weight=1, minsize=400) # Chart & aggregates
-        self.grid_columnconfigure(1, weight=1, minsize=400) # Timeline log
-        self.grid_rowconfigure(1, weight=1)
-        self.grid_rowconfigure(2, weight=0, minsize=180)
+        self.grid_columnconfigure(0, weight=1, minsize=400) # Left column: Timeline log
+        self.grid_columnconfigure(1, weight=1, minsize=400) # Right column: Statistics & Donut
+        self.grid_rowconfigure(1, weight=1)                  # Top Row (ML Terminal - spans full width)
+        self.grid_rowconfigure(2, weight=1)                  # Bottom Row (Timeline log & Stats)
 
         # ── Top Bar: Filter Actions ───────────────────────────────────────────
         self.top_bar = ctk.CTkFrame(self, fg_color="transparent")
@@ -79,69 +79,12 @@ class HistoryTab(ctk.CTkFrame):
         )
         self.btn_30d.pack(side="left", padx=2, pady=2)
 
-        # ── Left Column: Analytics & Pie Chart ────────────────────────────────
-        self.left_col = ctk.CTkFrame(
-            self, fg_color="#d4d0c8",
-            border_color="#ffffff", border_width=2, corner_radius=0
-        )
-        self.left_col.grid(row=1, column=0, padx=(10, 5), pady=(5, 10), sticky="nsew")
-
-        title_bar_stats = ctk.CTkFrame(self.left_col, fg_color="#000080", height=24, corner_radius=0)
-        title_bar_stats.pack(fill="x", padx=2, pady=2)
-
-        self.stats_title = ctk.CTkLabel(
-            title_bar_stats, text="📊 TỶ LỆ CÓ MẶT TRONG PHÒNG", text_color="#ffffff",
-            font=ctk.CTkFont(family="Tahoma", size=13, weight="bold")
-        )
-        self.stats_title.pack(anchor="w", padx=6, pady=2)
-
-        # Embedded Donut Chart (Enhanced size for legibility)
-        self.fig, self.ax = plt.subplots(figsize=(3.5, 3.5), facecolor="#d4d0c8")
-        self.ax.set_facecolor("#d4d0c8")
-        self.chart_canvas = FigureCanvasTkAgg(self.fig, master=self.left_col)
-        self.chart_canvas.get_tk_widget().pack(fill="both", expand=True, padx=15, pady=5)
-
-        # Stats info text (Larger high-contrast fonts)
-        self.aggregates_frame = ctk.CTkFrame(self.left_col, fg_color="transparent")
-        self.aggregates_frame.pack(fill="x", padx=20, pady=(5, 10))
-
-        self.present_min_lbl = ctk.CTkLabel(self.aggregates_frame, text="Tổng thời gian có mặt: -- phút", text_color="#15803d", font=ctk.CTkFont(family="Tahoma", size=14, weight="bold"))
-        self.present_min_lbl.pack(pady=2)
-        self.absent_min_lbl = ctk.CTkLabel(self.aggregates_frame, text="Tổng thời gian phòng trống: -- phút", text_color="#000000", font=ctk.CTkFont(family="Tahoma", size=14, weight="bold"))
-        self.absent_min_lbl.pack(pady=2)
-
-        # ── Right Column: Timeline Event List ─────────────────────────────────
-        self.right_col = ctk.CTkFrame(
-            self, fg_color="#d4d0c8",
-            border_color="#ffffff", border_width=2, corner_radius=0
-        )
-        self.right_col.grid(row=1, column=1, padx=(5, 10), pady=(5, 10), sticky="nsew")
-
-        title_bar_timeline = ctk.CTkFrame(self.right_col, fg_color="#000080", height=24, corner_radius=0)
-        title_bar_timeline.pack(fill="x", padx=2, pady=2)
-
-        self.timeline_title = ctk.CTkLabel(
-            title_bar_timeline, text="🕒 NHẬT KÝ CHI TIẾT SỰ KIỆN", text_color="#ffffff",
-            font=ctk.CTkFont(family="Tahoma", size=13, weight="bold")
-        )
-        self.timeline_title.pack(anchor="w", padx=6, pady=2)
-
-        # Inset Border for white event list scroll
-        list_inset = ctk.CTkFrame(
-            self.right_col, fg_color="#ffffff",
-            border_color="#808080", border_width=2, corner_radius=0
-        )
-        list_inset.pack(fill="both", expand=True, padx=8, pady=(4, 10))
-
-        self.timeline_scroll = ctk.CTkScrollableFrame(list_inset, fg_color="#ffffff", corner_radius=0)
-        self.timeline_scroll.pack(fill="both", expand=True, padx=2, pady=2)
-
-        # ── Row 2: Bảng giám sát học hỏi thuật toán (Terminal Log Panel) ──────────────────
+        # ── Row 1: Cửa sổ giám sát tiến trình học máy AI (Prioritized on top spanning full width!) ──
         self.terminal_frame = ctk.CTkFrame(
             self, fg_color="#d4d0c8",
             border_color="#ffffff", border_width=2, corner_radius=0
         )
-        self.terminal_frame.grid(row=2, column=0, columnspan=2, padx=10, pady=(5, 10), sticky="ew")
+        self.terminal_frame.grid(row=1, column=0, columnspan=2, padx=10, pady=(5, 5), sticky="nsew")
         
         # Title bar for terminal frame (Navy Blue Retro title bar)
         term_title_bar = ctk.CTkFrame(self.terminal_frame, fg_color="#000080", height=24, corner_radius=0)
@@ -163,9 +106,73 @@ class HistoryTab(ctk.CTkFrame):
         self.terminal_text = ctk.CTkTextbox(
             term_inset, fg_color="#000000", text_color="#00ff00",
             font=ctk.CTkFont(family="Consolas", size=12),
-            height=140, corner_radius=0, activate_scrollbars=True
+            corner_radius=0, activate_scrollbars=True
         )
         self.terminal_text.pack(fill="both", expand=True, padx=2, pady=2)
+
+        # ── Row 2 Column 0: Timeline Event List ──
+        self.right_col = ctk.CTkFrame(
+            self, fg_color="#d4d0c8",
+            border_color="#ffffff", border_width=2, corner_radius=0
+        )
+        self.right_col.grid(row=2, column=0, padx=(10, 5), pady=(5, 10), sticky="nsew")
+
+        title_bar_timeline = ctk.CTkFrame(self.right_col, fg_color="#000080", height=24, corner_radius=0)
+        title_bar_timeline.pack(fill="x", padx=2, pady=2)
+
+        self.timeline_title = ctk.CTkLabel(
+            title_bar_timeline, text="🕒 NHẬT KÝ CHI TIẾT SỰ KIỆN", text_color="#ffffff",
+            font=ctk.CTkFont(family="Tahoma", size=13, weight="bold")
+        )
+        self.timeline_title.pack(anchor="w", padx=6, pady=2)
+
+        # Inset Border for white event list scroll
+        list_inset = ctk.CTkFrame(
+            self.right_col, fg_color="#ffffff",
+            border_color="#808080", border_width=2, corner_radius=0
+        )
+        list_inset.pack(fill="both", expand=True, padx=8, pady=(4, 10))
+
+        self.timeline_scroll = ctk.CTkScrollableFrame(list_inset, fg_color="#ffffff", corner_radius=0)
+        self.timeline_scroll.pack(fill="both", expand=True, padx=2, pady=2)
+
+        # ── Row 2 Column 1: Bottom Panel for Donut Chart & Aggregates ──
+        self.bottom_panel = ctk.CTkFrame(
+            self, fg_color="#d4d0c8",
+            border_color="#ffffff", border_width=2, corner_radius=0
+        )
+        self.bottom_panel.grid(row=2, column=1, padx=(5, 10), pady=(5, 10), sticky="nsew")
+
+        title_bar_stats = ctk.CTkFrame(self.bottom_panel, fg_color="#000080", height=24, corner_radius=0)
+        title_bar_stats.pack(fill="x", padx=2, pady=2)
+
+        self.stats_title = ctk.CTkLabel(
+            title_bar_stats, text="📊 TỔNG HỢP THỐNG KÊ & TỶ LỆ CÓ MẶT TRONG PHÒNG", text_color="#ffffff",
+            font=ctk.CTkFont(family="Tahoma", size=13, weight="bold")
+        )
+        self.stats_title.pack(anchor="w", padx=6, pady=2)
+
+        # Horizontal side-by-side grid inside bottom panel
+        stats_content = ctk.CTkFrame(self.bottom_panel, fg_color="transparent")
+        stats_content.pack(fill="both", expand=True, padx=10, pady=5)
+        stats_content.grid_columnconfigure(0, weight=1) # Donut chart left
+        stats_content.grid_columnconfigure(1, weight=1) # Stats text right
+        stats_content.grid_rowconfigure(0, weight=1)
+
+        # Embedded Donut Chart
+        self.fig, self.ax = plt.subplots(figsize=(2.8, 1.8), facecolor="#d4d0c8")
+        self.ax.set_facecolor("#d4d0c8")
+        self.chart_canvas = FigureCanvasTkAgg(self.fig, master=stats_content)
+        self.chart_canvas.get_tk_widget().grid(row=0, column=0, sticky="nsew", padx=10, pady=2)
+
+        # Stats info text
+        self.aggregates_frame = ctk.CTkFrame(stats_content, fg_color="transparent")
+        self.aggregates_frame.grid(row=0, column=1, sticky="nsew", padx=15, pady=10)
+
+        self.present_min_lbl = ctk.CTkLabel(self.aggregates_frame, text="Tổng thời gian có mặt: -- phút", text_color="#15803d", font=ctk.CTkFont(family="Tahoma", size=14, weight="bold"), anchor="w")
+        self.present_min_lbl.pack(pady=4, fill="x")
+        self.absent_min_lbl = ctk.CTkLabel(self.aggregates_frame, text="Tổng thời gian phòng trống: -- phút", text_color="#000000", font=ctk.CTkFont(family="Tahoma", size=14, weight="bold"), anchor="w")
+        self.absent_min_lbl.pack(pady=4, fill="x")
 
         self.refresh_data()
 
