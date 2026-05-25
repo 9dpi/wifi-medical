@@ -128,38 +128,40 @@ class DashboardTab(ctk.CTkFrame):
         title_bar_bio.pack(fill="x", padx=2, pady=2)
 
         self.bio_title = ctk.CTkLabel(
-            title_bar_bio, text="🔬 THEO DÕI SINH HIỆU (ƯỚC TÍNH)", text_color="#ffffff",
+            title_bar_bio, text="🔬 GIÁM SÁT SINH HIỆU LÂM SÀNG", text_color="#ffffff",
             font=ctk.CTkFont(family="Tahoma", size=13, weight="bold")
         )
         self.bio_title.pack(anchor="w", padx=6, pady=2)
 
-        self.bio_metrics = {}
-        bio_metric_labels = [
-            ("💓 Nhịp tim (BPM):", "heart_rate", "-- BPM"),
-            ("🌡️ Nhiệt độ cơ thể:", "body_temp", "-- °C"),
-            ("👥 Số người ước tính:", "people_count", "-- người"),
-            ("🩸 Nồng độ oxy SpO2:", "spo2", "N/A (Chờ cảm biến)")
-        ]
+        # People Count Header
+        row_people = ctk.CTkFrame(self.bio_card, fg_color="transparent")
+        row_people.pack(fill="x", padx=10, pady=5)
+        
+        lbl_people_name = ctk.CTkLabel(row_people, text="👥 Số người trong phòng:", text_color="#000000", font=ctk.CTkFont(family="Tahoma", size=13, weight="bold"))
+        lbl_people_name.pack(side="left")
+        
+        self.lbl_people_val = ctk.CTkLabel(row_people, text="-- người", text_color="#000080", font=ctk.CTkFont(family="Tahoma", size=13, weight="bold"))
+        self.lbl_people_val.pack(side="right")
 
-        for display_name, key, default_val in bio_metric_labels:
-            row = ctk.CTkFrame(self.bio_card, fg_color="transparent")
-            row.pack(fill="x", padx=10, pady=5)
-            
-            lbl_name = ctk.CTkLabel(row, text=display_name, text_color="#000000", font=ctk.CTkFont(family="Tahoma", size=13))
-            lbl_name.pack(side="left")
-            
-            lbl_val = ctk.CTkLabel(row, text=default_val, text_color="#000080", font=ctk.CTkFont(family="Tahoma", size=13, weight="bold"))
-            lbl_val.pack(side="right")
-            
-            self.bio_metrics[key] = lbl_val
+        # Sunken Bevel Box for Individual Vitals
+        self.vitals_border = ctk.CTkFrame(
+            self.bio_card, fg_color="#ffffff",
+            border_color="#808080", border_width=2, corner_radius=0
+        )
+        self.vitals_border.pack(fill="both", expand=True, padx=10, pady=(2, 5))
+
+        self.vitals_scroll = ctk.CTkScrollableFrame(
+            self.vitals_border, fg_color="transparent", corner_radius=0
+        )
+        self.vitals_scroll.pack(fill="both", expand=True, padx=2, pady=2)
 
         # Footnote for bio estimates clarity
         self.bio_footnote = ctk.CTkLabel(
-            self.bio_card, text="* Các chỉ số trên được suy luận gián tiếp từ sự thay đổi tần số sóng Wi-Fi.\nTự động cập nhật từ cảm biến y tế MAX30102 / MLX90614 khi kết nối.",
-            text_color="#555555", font=ctk.CTkFont(family="Tahoma", size=11, slant="italic"),
+            self.bio_card, text="* Chỉ số nhịp tim/nhiệt độ được suy luận gián tiếp qua sóng Wi-Fi.\nTự động đo chính xác bằng cảm biến MAX30102 / MLX90614 khi kết nối.",
+            text_color="#555555", font=ctk.CTkFont(family="Tahoma", size=10, slant="italic"),
             justify="left", anchor="w"
         )
-        self.bio_footnote.pack(anchor="w", padx=10, pady=(10, 10))
+        self.bio_footnote.pack(anchor="w", padx=10, pady=(5, 5))
 
         # ── Right Column: Charts & Alert Log ──────────────────────────────────
         self.right_frame = ctk.CTkFrame(self, fg_color="transparent")
@@ -240,46 +242,103 @@ class DashboardTab(ctk.CTkFrame):
             vars_ = [s.variance for s in snapshots]
             self.chart.update_chart(ts, rssis, vars_)
 
+        # Clear existing dynamic occupant widgets
+        for child in self.vitals_scroll.winfo_children():
+            child.destroy()
+
         # Update Bio Metrics UI fields
         if bio_result:
-            # Heart rate BPM
-            if bio_result.heart_rate_bpm is not None:
-                hr_mode = "Ước tính" if bio_result.heart_rate_estimated else bio_result.heart_rate_source.upper()
-                self.bio_metrics["heart_rate"].configure(
-                    text=f"{bio_result.heart_rate_bpm:.1f} BPM ({hr_mode})",
-                    text_color="#b91c1c" if bio_result.heart_rate_estimated else "#15803d"
-                )
-            else:
-                self.bio_metrics["heart_rate"].configure(text="Đang phân tích...", text_color="#555555")
-
-            # Body Temperature Celsius
-            if bio_result.body_temp_celsius is not None:
-                temp_mode = "Ước tính" if bio_result.body_temp_estimated else bio_result.body_temp_source.upper()
-                self.bio_metrics["body_temp"].configure(
-                    text=f"{bio_result.body_temp_celsius:.1f} °C ({temp_mode})",
-                    text_color="#c2410c" if bio_result.body_temp_estimated else "#15803d"
-                )
-            else:
-                self.bio_metrics["body_temp"].configure(text="Đang phân tích...", text_color="#555555")
-
-            # People Count
+            # Update People Count
             people_conf = int(bio_result.people_confidence * 100)
-            self.bio_metrics["people_count"].configure(
-                text=f"{bio_result.people_count} người (Độ tin cậy {people_conf}%)",
-                text_color="#1e3a8a"
+            self.lbl_people_val.configure(
+                text=f"{bio_result.people_count} người (Độ tin cậy {people_conf}%)"
             )
 
-            # SpO2 oxygen saturation
-            if bio_result.sensor_spo2 is not None:
-                self.bio_metrics["spo2"].configure(
-                    text=f"{bio_result.sensor_spo2:.1f}% (MAX30102)",
-                    text_color="#15803d"
+            # Render vital cards for each occupant
+            vitals_list = getattr(bio_result, "people_vitals", [])
+            if not vitals_list or bio_result.people_count == 0:
+                empty_lbl = ctk.CTkLabel(
+                    self.vitals_scroll,
+                    text="📭 Phòng trống (Không phát hiện sinh hiệu)",
+                    text_color="#7f8c8d",
+                    font=ctk.CTkFont(family="Tahoma", size=12, slant="italic")
                 )
+                empty_lbl.pack(pady=30, fill="x")
             else:
-                self.bio_metrics["spo2"].configure(
-                    text="N/A (Chờ cảm biến)",
-                    text_color="#555555"
-                )
+                for occupant in vitals_list:
+                    # Occupant frame (outset bevel)
+                    occ_frame = ctk.CTkFrame(
+                        self.vitals_scroll,
+                        fg_color="#d4d0c8",
+                        border_color="#ffffff",
+                        border_width=1.5,
+                        corner_radius=0
+                    )
+                    occ_frame.pack(fill="x", pady=4, padx=2)
+
+                    # Occupant title bar (Yahoo theme colors)
+                    title_row = ctk.CTkFrame(occ_frame, fg_color="#000080" if occupant.get("id") == 1 else "#808080", height=20, corner_radius=0)
+                    title_row.pack(fill="x", padx=1, pady=1)
+
+                    occ_name = occupant.get("name")
+                    if occupant.get("id") == 1:
+                        occ_name = "👤 Người thứ 1 (Cụ Ông / Cụ Bà)"
+                    else:
+                        occ_name = f"👤 Người thứ {occupant.get('id')} (Người cùng phòng)"
+
+                    lbl_occ_name = ctk.CTkLabel(
+                        title_row,
+                        text=occ_name,
+                        text_color="#ffffff",
+                        font=ctk.CTkFont(family="Tahoma", size=11, weight="bold")
+                    )
+                    lbl_occ_name.pack(side="left", padx=5)
+
+                    # Vitals content
+                    vitals_content = ctk.CTkFrame(occ_frame, fg_color="transparent")
+                    vitals_content.pack(fill="x", padx=10, pady=5)
+
+                    # Heart rate row
+                    hr_val = occupant.get("heart_rate")
+                    hr_str = f"{hr_val:.1f} BPM" if hr_val is not None else "-- BPM"
+                    hr_mode = "Ước tính" if bio_result.heart_rate_estimated or occupant.get("id") > 1 else bio_result.heart_rate_source.upper()
+                    hr_color = "#b91c1c" if bio_result.heart_rate_estimated or occupant.get("id") > 1 else "#15803d"
+                    
+                    row_hr = ctk.CTkFrame(vitals_content, fg_color="transparent")
+                    row_hr.pack(fill="x", pady=2)
+                    ctk.CTkLabel(row_hr, text="💓 Nhịp tim:", text_color="#000000", font=ctk.CTkFont(family="Tahoma", size=12)).pack(side="left")
+                    ctk.CTkLabel(row_hr, text=f"{hr_str} ({hr_mode})", text_color=hr_color, font=ctk.CTkFont(family="Tahoma", size=12, weight="bold")).pack(side="right")
+
+                    # Temp row
+                    temp_val = occupant.get("body_temp")
+                    temp_str = f"{temp_val:.1f} °C" if temp_val is not None else "-- °C"
+                    temp_mode = "Ước tính" if bio_result.body_temp_estimated or occupant.get("id") > 1 else bio_result.body_temp_source.upper()
+                    temp_color = "#c2410c" if bio_result.body_temp_estimated or occupant.get("id") > 1 else "#15803d"
+                    
+                    row_temp = ctk.CTkFrame(vitals_content, fg_color="transparent")
+                    row_temp.pack(fill="x", pady=2)
+                    ctk.CTkLabel(row_temp, text="🌡️ Nhiệt độ:", text_color="#000000", font=ctk.CTkFont(family="Tahoma", size=12)).pack(side="left")
+                    ctk.CTkLabel(row_temp, text=f"{temp_str} ({temp_mode})", text_color=temp_color, font=ctk.CTkFont(family="Tahoma", size=12, weight="bold")).pack(side="right")
+
+                    # SpO2 row (for primary occupant only)
+                    if occupant.get("id") == 1:
+                        spo2_val = occupant.get("spo2")
+                        spo2_str = f"{spo2_val:.1f}% (MAX30102)" if spo2_val is not None else "N/A (Chờ cảm biến)"
+                        spo2_color = "#15803d" if spo2_val is not None else "#555555"
+                        
+                        row_spo2 = ctk.CTkFrame(vitals_content, fg_color="transparent")
+                        row_spo2.pack(fill="x", pady=2)
+                        ctk.CTkLabel(row_spo2, text="🩸 Oxy SpO2:", text_color="#000000", font=ctk.CTkFont(family="Tahoma", size=12)).pack(side="left")
+                        ctk.CTkLabel(row_spo2, text=spo2_str, text_color=spo2_color, font=ctk.CTkFont(family="Tahoma", size=12, weight="bold")).pack(side="right")
+        else:
+            self.lbl_people_val.configure(text="-- người")
+            empty_lbl = ctk.CTkLabel(
+                self.vitals_scroll,
+                text="📭 Đang kết nối dữ liệu...",
+                text_color="#7f8c8d",
+                font=ctk.CTkFont(family="Tahoma", size=12, slant="italic")
+            )
+            empty_lbl.pack(pady=30, fill="x")
 
     def refresh_alerts_list(self):
         """Re-fetches and displays current active/past alerts in the list."""

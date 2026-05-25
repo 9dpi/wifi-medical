@@ -293,69 +293,64 @@ class ToolExecutor:
             return f"[Lỗi khi thực thi {tool_name}]: {str(e)}"
 
     def _search_internet(self, query: str) -> str:
-        """Tìm kiếm thông tin thời gian thực từ internet qua Yahoo Search."""
+        """Tìm kiếm thông tin thời gian thực từ internet qua DuckDuckGo Lite."""
         logger.info(f"Đang thực hiện tìm kiếm internet cho truy vấn: '{query}'...")
+        url = "https://lite.duckduckgo.com/lite/"
         headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Content-Type": "application/x-www-form-urlencoded"
         }
-        url = f"https://search.yahoo.com/search?p={quote_plus(query)}"
+        data = {
+            "q": query
+        }
         try:
-            resp = requests.get(url, headers=headers, timeout=6)
+            resp = requests.post(url, headers=headers, data=data, timeout=8)
             if resp.status_code != 200:
-                return f"Lỗi: Không thể kết nối tới Yahoo Search (HTTP {resp.status_code})"
+                return f"Lỗi: Không thể kết nối tới DuckDuckGo Lite (HTTP {resp.status_code})"
             
             html_content = resp.text
+            
+            # Trích xuất kết quả một cách mạnh mẽ (tương thích mọi loại nháy đơn/kép, thứ tự thuộc tính)
+            a_matches = re.finditer(r'<a\b([^>]*)>(.*?)</a>', html_content, re.DOTALL)
+            links = []
+            for match in a_matches:
+                attrs = match.group(1)
+                inner_html = match.group(2)
+                if re.search(r'class\s*=\s*[\'"]result-link[\'"]', attrs):
+                    href_match = re.search(r'href\s*=\s*[\'"]([^\'"]+)[\'"]', attrs)
+                    if href_match:
+                        links.append((href_match.group(1), inner_html))
+                        
+            td_matches = re.finditer(r'<td\b([^>]*)>(.*?)</td>', html_content, re.DOTALL)
+            snippets = []
+            for match in td_matches:
+                attrs = match.group(1)
+                inner_html = match.group(2)
+                if re.search(r'class\s*=\s*[\'"]result-snippet[\'"]', attrs):
+                    snippets.append(inner_html)
+            
             results = []
-            
-            # Trích xuất kết quả bằng Regex
-            blocks = re.findall(r'<div[^>]*class="[^"]*algo[^"|a-zA-Z-]*sr[^"]*"[^>]*>.*?</div>\s*</div>\s*</li>', html_content, re.DOTALL)
-            if not blocks:
-                blocks = re.findall(r'<div[^>]*class="[^"]*algo[^"]*"[^>]*>.*?</div>\s*</div>\s*</li>', html_content, re.DOTALL)
-            if not blocks:
-                blocks = re.findall(r'<div[^>]*class="[^"]*algo[^"]*"[^>]*>.*?</div>\s*</div>', html_content, re.DOTALL)
-                
             import html as html_lib
-            import urllib.parse
             
-            for block in blocks[:5]:
-                # Trích xuất URL
-                href_match = re.search(r'<a[^>]*href="([^"]+)"', block)
-                url_str = href_match.group(1) if href_match else "Không nguồn"
+            for i, ((link_url, title), snippet) in enumerate(zip(links[:5], snippets[:5])):
+                clean_title = re.sub(r'<[^>]+>', '', title).strip()
+                clean_snippet = re.sub(r'<[^>]+>', '', snippet).strip()
                 
-                # Làm sạch URL chuyển hướng của Yahoo
-                if "/RU=" in url_str:
-                    try:
-                        url_str = urllib.parse.unquote(url_str.split("/RU=")[1].split("/")[0])
-                    except Exception:
-                        pass
-                
-                # Trích xuất Title
-                title = "Không tiêu đề"
-                h3_match = re.search(r'<h3[^>]*>(.*?)</h3>', block, re.DOTALL)
-                if h3_match:
-                    title = re.sub(r'<[^>]+>', '', h3_match.group(1)).strip()
-                    
-                # Trích xuất Snippet
-                snippet = "Không tóm tắt"
-                snippet_match = re.search(r'<div[^>]*class="[^"]*compText[^"]*"[^>]*>(.*?)</div>', block, re.DOTALL)
-                if snippet_match:
-                    snippet = re.sub(r'<[^>]+>', '', snippet_match.group(1)).strip()
-                
-                title = html_lib.unescape(title)
-                snippet = html_lib.unescape(snippet)
+                clean_title = html_lib.unescape(clean_title)
+                clean_snippet = html_lib.unescape(clean_snippet)
                 
                 # Làm sạch các ký tự HTML thô sơ khác
-                title = title.replace("&amp;", "&").replace("&quot;", '"').replace("&#x27;", "'")
-                snippet = snippet.replace("&amp;", "&").replace("&quot;", '"').replace("&#x27;", "'")
+                clean_title = clean_title.replace("&amp;", "&").replace("&quot;", '"').replace("&#x27;", "'")
+                clean_snippet = clean_snippet.replace("&amp;", "&").replace("&quot;", '"').replace("&#x27;", "'")
                 
-                results.append(f"- **{title}**\n  Nguồn: {url_str}\n  Tóm tắt: {snippet}")
+                results.append(f"- **{clean_title}**\n  Nguồn: {link_url}\n  Tóm tắt: {clean_snippet}")
                 
             if results:
                 summary = "\n\n".join(results)
                 logger.info("Tìm kiếm internet thành công, trả kết quả về cho Agent.")
                 return summary
             else:
-                logger.warning("Không tìm thấy kết quả tìm kiếm nào trên Yahoo Search.")
+                logger.warning("Không tìm thấy kết quả tìm kiếm nào trên DuckDuckGo Lite.")
                 return "Không tìm thấy kết quả tìm kiếm nào phù hợp trên internet."
         except Exception as e:
             logger.error(f"Gặp lỗi khi tìm kiếm internet: {e}")

@@ -62,6 +62,15 @@ class WifiScanner:
         self._mode = ScannerMode.DEMO
         self._error_message: str = ""
         self._demo_state = _DemoState()
+        self._consecutive_failures = 0
+
+        # Silence third-party pywifi logging completely (prevent propagation and remove active handlers)
+        import logging
+        pywifi_logger = logging.getLogger("pywifi")
+        pywifi_logger.setLevel(logging.CRITICAL)
+        pywifi_logger.propagate = False
+        for h in list(pywifi_logger.handlers):
+            pywifi_logger.removeHandler(h)
 
         # Detect best scanner
         self._mode = self._detect_mode()
@@ -132,11 +141,22 @@ class WifiScanner:
             try:
                 if self._mode == ScannerMode.REAL_PYWIFI:
                     networks = self._scan_pywifi()
+                    self._consecutive_failures = 0
                 elif self._mode == ScannerMode.REAL_NETSH:
                     networks = self._scan_netsh()
+                    self._consecutive_failures = 0
                 else:
                     networks = self._scan_demo()
-            except Exception:
+            except Exception as e:
+                self._consecutive_failures += 1
+                if self._consecutive_failures >= 3 and self._mode != ScannerMode.DEMO:
+                    from desktop.app.logger import get_logger
+                    fallback_logger = get_logger("scanner")
+                    fallback_logger.warning(
+                        f"Thiết bị Wi-Fi gặp sự cố liên tục ({e}). "
+                        f"Hệ thống tự động chuyển sang chế độ mô phỏng (Demo Mode) để duy trì hoạt động an toàn."
+                    )
+                    self._mode = ScannerMode.DEMO
                 networks = self._scan_demo()
 
             if networks:

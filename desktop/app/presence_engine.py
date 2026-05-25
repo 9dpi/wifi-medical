@@ -73,7 +73,14 @@ class PresenceEngine:
 
     def _load_config(self):
         cfg = get_config()
-        self.baseline_variance = cfg.baseline_variance if cfg.is_calibrated else 0.5
+        self.baseline_variance = cfg.baseline_variance if cfg.is_calibrated else 0.3
+        
+        # Giới hạn ngưỡng baseline_variance an toàn (0.05 đến 0.4) để tránh nhiễu/hiệu chỉnh sai lệch làm hỏng hệ thống
+        if self.baseline_variance > 0.4:
+            self.baseline_variance = 0.4
+        elif self.baseline_variance < 0.05:
+            self.baseline_variance = 0.05
+            
         self.calibrated = cfg.is_calibrated
         self.calibration_samples_required = cfg.calibration_samples
         self.sensitivity = cfg.sensitivity
@@ -125,7 +132,7 @@ class PresenceEngine:
             self.calib_samples.append(variance)
             if len(self.calib_samples) >= self.calibration_samples_required:
                 avg_var = sum(self.calib_samples) / len(self.calib_samples)
-                self.baseline_variance = max(avg_var, 0.1)
+                self.baseline_variance = max(0.05, min(avg_var, 0.4))
                 self.calibrated = True
                 self.calib_samples.clear()
                 # Save to config!
@@ -139,7 +146,7 @@ class PresenceEngine:
         presence_thresh = self.baseline_variance * self.presence_threshold_multiplier
         moving_thresh = self.baseline_variance * self.moving_threshold_multiplier
         # Ngưỡng phát hiện ngủ/nghỉ ngơi tĩnh lặng siêu nhạy
-        sleep_thresh = self.baseline_variance * (1.2 / self.sensitivity)
+        sleep_thresh = self.baseline_variance * (1.0 / self.sensitivity)
 
         if variance >= moving_thresh:
             presence = PresenceState.PRESENT
@@ -188,7 +195,7 @@ class PresenceEngine:
         get_config_manager().update(is_calibrated=False, baseline_variance=0.0)
 
     def set_baseline(self, variance: float):
-        self.baseline_variance = max(variance, 0.1)
+        self.baseline_variance = max(0.05, min(variance, 0.4))
         self.calibrated = True
         self.calib_samples.clear()
         get_config_manager().update(is_calibrated=True, baseline_variance=self.baseline_variance)

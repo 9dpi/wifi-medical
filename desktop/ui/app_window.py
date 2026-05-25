@@ -54,6 +54,7 @@ from desktop.ui.history_tab import HistoryTab
 from desktop.ui.settings_tab import SettingsTab
 from desktop.ui.guide_tab import GuideTab
 from desktop.ui.ai_chat_tab import AIChatTab
+from desktop.ui.map_2d_tab import Map2DTab
 
 # Fail-safe system tray support
 try:
@@ -116,6 +117,9 @@ class AppWindow(ctk.CTk):
         self.btn_nav_dash = self._create_nav_btn("📊 Bảng Trực Giám Sát", self.show_dashboard)
         self.btn_nav_dash.pack(fill="x", padx=10, pady=4)
 
+        self.btn_nav_map = self._create_nav_btn("🗺️ Sơ Đồ Phòng 2D", self.show_map_2d)
+        self.btn_nav_map.pack(fill="x", padx=10, pady=4)
+
         self.btn_nav_hist = self._create_nav_btn("📜 Nhật Ký Y Tế & Học Máy", self.show_history)
         self.btn_nav_hist.pack(fill="x", padx=10, pady=4)
 
@@ -160,6 +164,7 @@ class AppWindow(ctk.CTk):
 
         # Initialize screen classes
         self.dashboard_tab = DashboardTab(self.tab_container, self.db)
+        self.map_2d_tab = Map2DTab(self.tab_container, self.db)
         self.history_tab = HistoryTab(self.tab_container, self.db)
         self.settings_tab = SettingsTab(
             self.tab_container,
@@ -259,7 +264,7 @@ class AppWindow(ctk.CTk):
             self.ai_chat_tab.set_ollama(self._ollama)
 
     def select_nav_button(self, active_btn: ctk.CTkButton):
-        for btn in [self.btn_nav_dash, self.btn_nav_hist, self.btn_nav_sett,
+        for btn in [self.btn_nav_dash, self.btn_nav_map, self.btn_nav_hist, self.btn_nav_sett,
                     self.btn_nav_guid, self.btn_nav_ai]:
             if btn == active_btn:
                 btn.configure(fg_color="#000080", text_color="#ffffff", border_color="#808080", border_width=1)
@@ -273,6 +278,13 @@ class AppWindow(ctk.CTk):
         self.dashboard_tab.pack(fill="both", expand=True)
         self.active_tab = self.dashboard_tab
         self.dashboard_tab.refresh_alerts_list()
+
+    def show_map_2d(self):
+        self.select_nav_button(self.btn_nav_map)
+        if self.active_tab:
+            self.active_tab.pack_forget()
+        self.map_2d_tab.pack(fill="both", expand=True)
+        self.active_tab = self.map_2d_tab
 
     def show_history(self):
         self.select_nav_button(self.btn_nav_hist)
@@ -347,6 +359,12 @@ class AppWindow(ctk.CTk):
                 is_alert=self.has_active_alert,
                 alert_type=self.active_alert_type,
                 bio_result=self.exporter.bio_estimator.last_result
+            )
+
+            # Update 2D room position
+            self.map_2d_tab.update_location(
+                variance=result.rssi_variance,
+                activity=result.activity.value
             )
 
         # Update sidebar active connected Wi-Fi dynamically (outside of networks check to ensure it always runs)
